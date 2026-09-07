@@ -1,7 +1,10 @@
-# mobile_robot_station Local Development Rules
+# RULES: mobile_robot_station 本地规则与 AI 协同规范
 
-1. Language: Always write code comments, docstrings, and documentation in Simplified Chinese.
-2. Emoji Policy: Strictly forbid emojis across all files (code, comments, documentation, terminal logs).
-3. Architecture: Strictly enforce modularization. Decouple simulation, math, SLAM, navigation, and entrypoint scripts.
-4. Hardware: Target Linux x86_64, multi-core CPU + integrated GPU. Forbid heavy CUDA dependencies. Maximize CPU multi-threading.
-5. Assets: Fully self-contained. No external symlinks. Keep meshes and physics models clean and deterministic.
+详见根目录下完整的规范文档: RULES.md
+
+1. 语言规范: 对话回复与代码注释一律使用简体中文 (Simplified Chinese)。
+2. 表情规范: 严禁在对话、文档、代码与日志中出现任何 Emoji。
+3. 硬件铁律: 适配强 CPU + 核显，严禁依赖重型 CUDA，最大化压榨多核多线程与 AVX 算力。
+4. 架构分层: 坚决杜绝单体大脚本，严格模块化解耦 (simulation, core_math, slam, navigation, gui)。
+5. 资产规范: 完全自包含，严禁使用外部软链接 (No Symlinks)。
+6. 虚拟环境: 严格统一使用 /home/yellowtown/Code/PythonProject/venv。

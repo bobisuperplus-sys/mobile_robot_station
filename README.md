@@ -66,8 +66,8 @@ mobile_robot_station/
 ├── scripts/                         # 轻量级业务启动与调度入口
 │   └── run_teleop_simulation.py     # 键盘交互遥控与建筑群物理仿真入口脚本
 ├── tests/                           # 核心算法单元测试
-├── PROJECT_RULES.md                 # 项目工程与开发规范指南
-├── .rules                           # 本地工具规则配置
+├── RULES.md                         # 项目工程规范与 AI 对话准则
+├── .rules                           # 本地开发与协同规则配置
 ├── .gitignore                       # 规范忽略临时文件与编译缓存
 └── README.md                        # 工业级系统文档
 ```
