@@ -1,0 +1,33 @@
+# 字节码与缓存
+__pycache__/
+*.py[cod]
+*$py.class
+.cache/
+
+# 构建产物
+build/
+bin/
+lib/
+*.o
+*.a
+*.so
+
+# IDE 与工程临时文件
+.vscode/
+.idea/
+*.user
+*.autosave
+*.swp
+*.swo
+*~
+
+# 日志与运行时数据
+*.log
+*.bag
+*.pcap
+
+# 虚拟环境
+venv/
+.venv/
+env/
+MUJOCO_LOG.TXT

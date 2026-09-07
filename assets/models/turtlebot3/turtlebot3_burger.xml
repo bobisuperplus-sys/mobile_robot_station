@@ -1,0 +1,80 @@
+<mujoco model="turtlebot3_burger">
+  <compiler angle="radian" autolimits="true"/>
+
+  <default>
+    <default class="visual">
+      <geom group="1" type="mesh" contype="0" conaffinity="0"/>
+    </default>
+    <default class="collision">
+      <geom group="0" rgba="0.8 0.8 0.8 1" solref="0.01 1" solimp="0.9 0.95 0.001 0.5 2"/>
+    </default>
+    <default class="wheel">
+      <geom group="0" type="cylinder" size="0.033 0.009" zaxis="0 1 0" friction="1.5 0.005 0.0001" condim="3" solref="0.01 1" solimp="0.9 0.95 0.001 0.5 2"/>
+    </default>
+  </default>
+
+  <asset>
+    <!-- 3D 视觉网格资产 (自包含 STL，相对路径由引用上层 meshdir 统一定义) -->
+    <mesh name="burger_base" file="bases/burger_base.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="left_tire" file="wheels/left_tire.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="right_tire" file="wheels/right_tire.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="lds" file="sensors/lds.stl" scale="0.001 0.001 0.001"/>
+
+    <!-- 材质配置 -->
+    <material name="dark_grey" rgba="0.2 0.2 0.2 1"/>
+    <material name="tire_black" rgba="0.1 0.1 0.1 1"/>
+    <material name="sensor_black" rgba="0.05 0.05 0.05 1"/>
+    <material name="accent_yellow" rgba="0.9 0.7 0.1 1"/>
+  </asset>
+
+  <worldbody>
+    <!-- 机器人基座：初始预置于南侧车道 (0, -6.0, 0.03)，面朝正北 (绕 Z 轴旋转 90 度) -->
+    <body name="base_link" pos="0 -6.0 0.010" euler="0 0 1.5707963">
+      <freejoint name="root"/>
+      <inertial mass="1.0" pos="-0.032 0 0.07" diaginertia="0.008 0.008 0.008"/>
+
+      <!-- 底盘主体外观 (STL) -->
+      <geom type="mesh" mesh="burger_base" pos="0 0 0" class="visual" material="dark_grey"/>
+      <geom type="mesh" mesh="lds" pos="-0.032 0 0.172" class="visual" material="sensor_black"/>
+
+      <!-- 底盘物理碰撞体 (轻量几何体，确保 CPU 毫秒级解算) -->
+      <geom type="cylinder" size="0.075 0.045" pos="-0.032 0 0.065" class="collision" mass="0.82"/>
+
+      <!-- 支撑脚轮 (前万向支点与后万向支点，低滚动摩擦) -->
+      <geom type="sphere" size="0.008" pos="0.035 0 -0.002" friction="0.01 0.005 0.0001" condim="1" class="collision" mass="0.02"/>
+      <geom type="sphere" size="0.008" pos="-0.049 0 -0.002" friction="0.01 0.005 0.0001" condim="1" class="collision" mass="0.02"/>
+
+      <!-- 传感器安装站点 (Site) -->
+      <site name="imu_site" pos="0 0 0.068" size="0.008" rgba="1 0 0 1"/>
+      <site name="lidar_site" pos="-0.032 0 0.172" size="0.01" rgba="0 1 0 1"/>
+
+      <!-- 左驱动轮 -->
+      <body name="wheel_left_link" pos="0 0.080 0.023">
+        <joint name="wheel_left_joint" type="hinge" axis="0 1 0" damping="0.05"/>
+        <inertial mass="0.08" pos="0 0 0" diaginertia="0.0005 0.001 0.0005"/>
+        <geom class="wheel" mass="0.05" material="tire_black"/>
+        <geom type="mesh" mesh="left_tire" pos="0 0 0" class="visual" material="tire_black"/>
+      </body>
+
+      <!-- 右驱动轮 -->
+      <body name="wheel_right_link" pos="0 -0.080 0.023">
+        <joint name="wheel_right_joint" type="hinge" axis="0 1 0" damping="0.05"/>
+        <inertial mass="0.08" pos="0 0 0" diaginertia="0.0005 0.001 0.0005"/>
+        <geom class="wheel" mass="0.05" material="tire_black"/>
+        <geom type="mesh" mesh="right_tire" pos="0 0 0" class="visual" material="tire_black"/>
+      </body>
+    </body>
+  </worldbody>
+
+  <actuator>
+    <!-- 速度控制器：输入单位为 rad/s -->
+    <velocity name="wheel_left_motor" joint="wheel_left_joint" kv="0.2" ctrlrange="-15 15"/>
+    <velocity name="wheel_right_motor" joint="wheel_right_joint" kv="0.2" ctrlrange="-15 15"/>
+  </actuator>
+
+  <sensor>
+    <!-- 6 轴高频 IMU 动力学输出 -->
+    <accelerometer name="imu_accel" site="imu_site"/>
+    <gyro name="imu_gyro" site="imu_site"/>
+  </sensor>
+</mujoco>

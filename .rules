@@ -1,0 +1,7 @@
+# mobile_robot_station Local Development Rules
+
+1. Language: Always write code comments, docstrings, and documentation in Simplified Chinese.
+2. Emoji Policy: Strictly forbid emojis across all files (code, comments, documentation, terminal logs).
+3. Architecture: Strictly enforce modularization. Decouple simulation, math, SLAM, navigation, and entrypoint scripts.
+4. Hardware: Target Linux x86_64, multi-core CPU + integrated GPU. Forbid heavy CUDA dependencies. Maximize CPU multi-threading.
+5. Assets: Fully self-contained. No external symlinks. Keep meshes and physics models clean and deterministic.
