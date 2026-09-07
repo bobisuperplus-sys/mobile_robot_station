@@ -40,10 +40,15 @@ mobile_robot_station/
 │   └── world_sim.py                   # MuJoCo 物理环境生命周期管理与多机位离屏渲染集成器
 │
 ├── core_math/                         # 空间几何代数与李代数核心库 (SE3/SO3 切空间微扰与李括号)
-│   └── __init__.py                    # 模块导出定义
+│   ├── __init__.py                    # 模块导出定义
+│   ├── so3.py                         # 三维旋转群 SO(3)、四元数与罗德里格斯公式指数/对数映射
+│   └── se3.py                         # 三维特殊欧氏群 SE(3)、空间刚体位姿变换与切空间六维微扰
 │
-├── slam/                              # 3D 激光惯导紧耦合里程计 (点云配准、增量式 ikd-Tree、全局建图)
-│   └── __init__.py                    # 模块导出定义
+├── slam/                              # 3D 激光惯导紧耦合里程计 (点云配准、抗退化约束、全局增量建图)
+│   ├── __init__.py                    # 模块导出定义
+│   ├── preprocess.py                  # 极速 NumPy 向量化点云测距截断、自遮挡过滤与体素质心降采样
+│   ├── imu_tracker.py                 # 6 轴 IMU 运动学中点积分、差速底盘非全息动力学约束与 Z 轴退化抑制
+│   └── lio_odometry.py                # 点到面高斯-牛顿 ICP 配准器、cKDTree 空间索引与全局增量式 3D 建图
 │
 ├── navigation/                        # 自主路径规划与局部避障 (2D Costmap 投影、A* 规划、DWA 避障)
 │   └── __init__.py                    # 模块导出定义
@@ -62,11 +67,14 @@ mobile_robot_station/
 ├── scripts/                           # 业务启动与功能验证入口脚本
 │   ├── run_teleop_simulation.py       # 键盘交互式差速小车遥控与城市建筑群物理仿真主入口
 │   ├── run_streaming_simulation.py    # GStreamer 双机位 (车载前向 + 全局监控) H.264 视讯推流仿真入口
-│   └── view_lidar_scan.py             # 独立激光雷达点云捕获与测距单帧交互可视化验证工具
+│   ├── view_lidar_scan.py             # 独立激光雷达点云捕获与测距单帧交互可视化验证工具
+│   └── view_slam_mapping.py           # 3D LIO-SLAM 实时建图、位姿估计与全局点云导出交互控制台
 │
 └── tests/                             # 核心算法与传感器自动化测试套件
     ├── __init__.py                    # 测试包标识
-    └── test_sensors.py                # 激光雷达光线求交、IMU 高斯噪声与平台兼容性自动化测试集
+    ├── test_sensors.py                # 激光雷达光线求交、IMU 高斯噪声与平台兼容性自动化测试集
+    ├── test_math.py                   # 空间几何 SO(3)/SE(3) 李群李代数运算精度与微扰求导测试集
+    └── test_slam.py                   # 点云体素滤波、IMU 运动学追踪与点到面 ICP 配准收敛性测试集
 ```
 
 ---
@@ -99,11 +107,11 @@ sudo apt update && sudo apt install -y \
     gstreamer1.0-libav
 ```
 
-### 步骤三：运行核心传感器自动化测试
-验证激光雷达 Raycasting、IMU 高斯噪声发生器与平台兼容性层是否正常工作：
+### 步骤三：运行核心算法与传感器自动化测试套件
+验证空间数学库、激光雷达 Raycasting、IMU 高斯噪声与 3D LIO-SLAM 点到面配准收敛性：
 
 ```bash
-python -m unittest tests/test_sensors.py
+python -m unittest discover tests
 ```
 
 ---
@@ -138,7 +146,16 @@ gst-launch-1.0 -v udpsrc port=5002 caps="application/x-rtp, media=(string)video,
 python scripts/view_lidar_scan.py
 ```
 
-### 4. 启动数字孪生上位机控制台 (Qt 6 Client)
+### 4. 启动 3D LIO-SLAM 实时建图与轨迹估计 (SLAM Mapping & Odometry)
+启动带有 3D 物理视口与激光惯导实时配准的综合建图控制台，遥控小车在立体街区中漫游，实时解算厘米级 6-DOF 位姿并增量构建全局 3D 点云地图：
+
+```bash
+python scripts/view_slam_mapping.py
+```
+- **快捷键**：`W/S/A/D` 操控底盘运动，`P` 键实时导出当前点云快照，`Q/ESC` 退出并自动保存全局地图文件 (`tests/data/urban_world_slam_map.ply`)；
+- **无头测试**：支持 `python scripts/view_slam_mapping.py --auto --headless --steps 100` 进行无图形纯后台基准性能回归测试。
+
+### 5. 启动数字孪生上位机控制台 (Qt 6 Client)
 上位机工程基于 Qt 6 (C++ / QML) 开发，可在 Qt Creator 中打开 `qt_client/mobile_console/CMakeLists.txt` 构建运行，或在终端编译后执行：
 
 ```bash

@@ -71,6 +71,10 @@ class UrbanWorldSimulation:
         """获取小车当前世界坐标 [x, y, z] (单位: 米)"""
         return np.copy(self.data.xpos[self.robot_body_id])
 
+    def get_robot_orientation(self) -> np.ndarray:
+        """获取小车当前世界位姿四元数 [w, x, y, z]"""
+        return np.copy(self.data.xquat[self.robot_body_id])
+
     def get_robot_yaw(self) -> float:
         """从底盘位姿四元数计算航向角 Yaw (单位: 弧度)"""
         quat = self.data.xquat[self.robot_body_id]

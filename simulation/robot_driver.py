@@ -52,6 +52,11 @@ class TurtleBot3BurgerDriver:
         self.v = 0.0
         self.w = 0.0
 
+    def set_velocity(self, v: float, w: float):
+        """直接设置目标线速度 (m/s) 与角速度 (rad/s)，带最大幅值裁剪"""
+        self.v = float(max(min(v, self.max_v), -self.max_v))
+        self.w = float(max(min(w, self.max_w), -self.max_w))
+
     def get_wheel_angular_velocities(self) -> tuple[float, float]:
         """
         根据当前目标线速度与角速度，解算左右轮期望角速度 (单位: rad/s)
