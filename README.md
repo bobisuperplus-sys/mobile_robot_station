@@ -66,8 +66,8 @@ mobile_robot_station/
 ├── scripts/                         # 轻量级业务启动与调度入口
 │   └── run_teleop_simulation.py     # 键盘交互遥控与建筑群物理仿真入口脚本
 ├── tests/                           # 核心算法单元测试
+├── requirements.txt                 # 项目 Python 依赖库清单
 ├── RULES.md                         # 项目工程规范与 AI 对话准则
-├── .rules                           # 本地开发与协同规则配置
 ├── .gitignore                       # 规范忽略临时文件与编译缓存
 └── README.md                        # 工业级系统文档
 ```
@@ -76,8 +76,14 @@ mobile_robot_station/
 
 ## 4. 快速启动指南
 
-### 4.1 激活 Python 虚拟环境
-本项目已通过系统专属虚拟环境验证：
+### 4.1 环境准备与依赖安装
+建议使用 Python 虚拟环境 (Python >= 3.10):
+```bash
+# 安装通用 Python 依赖 (纯 CPU 友好，无需 CUDA)
+pip install -r requirements.txt
+```
+
+若在本机开发，可直接激活指定环境:
 ```bash
 source /home/yellowtown/Code/PythonProject/venv/bin/activate
 ```

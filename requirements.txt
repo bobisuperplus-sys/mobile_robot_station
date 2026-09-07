@@ -1,0 +1,8 @@
+# mobile_robot_station Python 依赖清单
+# 适配 Python >= 3.10，纯 CPU 高效运行，无需 CUDA
+
+mujoco>=3.0.0
+numpy>=1.24.0
+scipy>=1.10.0
+matplotlib>=3.7.0
+pyyaml>=6.0
