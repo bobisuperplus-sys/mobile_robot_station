@@ -15,6 +15,8 @@
 3. **强 CPU 与轻量化计算适配原则 (Hardware & Compute Principles)**：
    - 面向通用标准平台与多核 CPU 环境，彻底规避依赖重型 CUDA、大显存或必须依赖独立高端 GPU 的框架；
    - 优先采用纯 CPU 并行优化友好、内存紧凑、利用 AVX 向量化与多线程加速的高性能算法体系 (如 MuJoCo 多线程仿真、ikd-Tree、Eigen3、Sophus、Ceres 稀疏求解器)。
+4. **Linux 桌面显示后端兼容规范 (Display Platform Compatibility)**：
+   - 针对 Ubuntu 22.04 / 24.04 默认 Wayland 会话，所有涉及图形视口 (GLFW / Qt) 的入口必须优先配置 `GLFW_PLATFORM=x11` 与 `QT_QPA_PLATFORM=xcb`，通过 XWayland 兼容层彻底消除 Wayland 窗口绝对坐标限制警告。
 
 ---
 
