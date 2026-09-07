@@ -30,6 +30,9 @@
     <!-- 定向日光光源 -->
     <light pos="5 -5 18" dir="-0.3 0.3 -1" directional="true" diffuse="0.85 0.85 0.8" specular="0.3 0.3 0.3" castshadow="true"/>
 
+    <!-- 全局高空透视监控相机 (Overview Cam) -->
+    <camera name="overview_cam" pos="0 -15 12" xyaxes="1 0 0 0 0.64 0.77" fovy="65"/>
+
     <!-- 1. 地面基座 (26m x 26m 沥青测试场) -->
     <geom name="ground" type="plane" size="14 14 0.1" material="asphalt_mat" friction="1.2 0.005 0.0001"/>
 

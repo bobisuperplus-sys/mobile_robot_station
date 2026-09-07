@@ -48,6 +48,11 @@ class UrbanWorldSimulation:
         # 立即执行一次前向正运动学解算，初始化所有几何体与安装站点的空间坐标
         mujoco.mj_forward(self.model, self.data)
 
+        # 离屏渲染器缓存
+        self._renderer = None
+        self._render_width = 640
+        self._render_height = 480
+
     @property
     def timestep(self) -> float:
         """物理单步积分时间 (秒)"""
@@ -105,3 +110,19 @@ class UrbanWorldSimulation:
             robot_body_name="base_link",
             return_world_frame=return_world_frame,
         )
+
+    def render_camera(self, camera_name: str = "front_cam", width: int = 640, height: int = 480) -> np.ndarray:
+        """
+        离屏渲染指定相机的 RGB 图像帧
+        :param camera_name: 相机名称 (如 'front_cam' 或 'overview_cam')
+        :param width: 画面宽度 (默认 640)
+        :param height: 画面高度 (默认 480)
+        :return: (height, width, 3) 的 uint8 RGB 数组
+        """
+        if self._renderer is None or self._render_width != width or self._render_height != height:
+            self._render_width = width
+            self._render_height = height
+            self._renderer = mujoco.Renderer(self.model, height=height, width=width)
+
+        self._renderer.update_scene(self.data, camera=camera_name)
+        return self._renderer.render()

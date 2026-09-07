@@ -82,14 +82,21 @@ python scripts/run_teleop_simulation.py
 ```
 - **控制按键**：`W/S` 加减速前进后退、`A/D` 差速原地转向、`Space` 紧急制动刹车、`Q/ESC` 安全退出。
 
-### 2. 启动统一核心主控服务 (MSH Host Server)
+### 2. 启动 GStreamer 视讯推流与移动仿真 (Streaming Simulation)
+拉起双机位实时视讯推流，将车载感知相机 (UDP: 5002) 与全局监控相机 (UDP: 5004) 通过 H.264 RTP 广播至上位机：
+
+```bash
+python scripts/run_streaming_simulation.py
+```
+
+### 3. 启动统一核心主控服务 (MSH Host Server)
 拉起后台 MSH 守护微服务，负责物理仿真步进、3D 激光点云生成、车载相机推流并开放 TCP:9001 JSON-RPC 控制总线：
 
 ```bash
 python src/msh/msh_server.py
 ```
 
-### 3. 启动数字孪生上位机控制台 (Qt 6 Client)
+### 4. 启动数字孪生上位机控制台 (Qt 6 Client)
 在另一个终端中启动已编译就绪的上位机界面：
 
 ```bash

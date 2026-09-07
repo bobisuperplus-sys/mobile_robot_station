@@ -88,6 +88,27 @@ class TestSensors(unittest.TestCase):
         std_accel = np.std(samples, axis=0)
         self.assertAlmostEqual(std_accel[0], 0.05, delta=0.02)
 
+    def test_gstreamer_streaming_pipeline(self):
+        """测试 GStreamer 双机位超低延迟推流管道连通性"""
+        from src.simulation.streamer import MultiCameraStreamServer
+
+        server = MultiCameraStreamServer(
+            width=320,
+            height=240,
+            fps=30,
+            front_port=5992,
+            overview_port=5994,
+        )
+
+        dummy_frame = np.zeros((240, 320, 3), dtype=np.uint8)
+        ok1 = server.push_front_frame(dummy_frame)
+        ok2 = server.push_overview_frame(dummy_frame)
+
+        self.assertTrue(ok1, "前视感知机位 GStreamer 管道推流失败")
+        self.assertTrue(ok2, "全局监控机位 GStreamer 管道推流失败")
+
+        server.close()
+
 
 if __name__ == "__main__":
     unittest.main()
