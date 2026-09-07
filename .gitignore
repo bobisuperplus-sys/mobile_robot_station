@@ -33,6 +33,7 @@ CMakeLists.txt.user*
 *.pcap
 MUJOCO_LOG.TXT
 tests/data/
+maps/
 output/*
 !output/autonomous_navigation_dashboard.png
 

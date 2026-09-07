@@ -54,11 +54,17 @@ mobile_robot_station/
 │   ├── __init__.py                    # 模块导出定义
 │   ├── costmap.py                     # 3D 点云高程切片、2D 占用代价栅格与欧氏距离安全膨胀层
 │   ├── elevation_map.py               # 2.5D 地形高程、二维空间梯度坡度与局部台阶可通行性代价图
+│   ├── map_storage.py                 # 工业级地图持久化存盘与加载管理器 (.ply/.npz/.png/.yaml)
+│   ├── navigation_manager.py          # 高内聚自主导航协调状态机 (A* + DWA + 逆运动学驱动)
 │   ├── global_planner.py              # 欧氏启发式 A* 全局路径寻路与自适应折线平滑器
 │   └── local_planner.py               # 动态窗口法 (DWA) 轨迹采样、评价与局部避障速度规划器
 │
-├── msh/                               # MSH (Mobile Station Host) 后台主控微服务与通信总线
-│   └── __init__.py                    # 模块导出定义
+├── msh/                               # MSH (Mobile Station Host) 主控微服务总线与网关
+│   ├── __init__.py                    # 模块导出定义
+│   ├── capabilities.py                # 全车功能能力清单 (Capabilities Manifest) 定义中心
+│   ├── rpc_server.py                  # TCP JSON-RPC 2.0 高并发多线程服务网关 (端口 9001)
+│   ├── service_handler.py             # 业务请求集中调度中心 (底盘、建图、地图管理、导航遥测)
+│   └── client.py                      # MSH 客户端通信 SDK 与 CLI 终端交互工具
 │
 ├── qt_client/                         # 工业数字孪生上位机客户端工程 (C++ / Qt 6 QML，并列核心子系统)
 │   └── mobile_console/                # 基于 Qt 6 构建的 Cyber 赛博工业风格移动机器人控制台
@@ -69,6 +75,7 @@ mobile_robot_station/
 │       └── .gitignore                 # Qt Creator 专用本地构建忽略规则
 │
 ├── scripts/                           # 业务启动与功能验证入口脚本
+│   ├── run_msh_server.py              # MSH 主控微服务后台守护进程与 3D 数字孪生启动脚本
 │   ├── run_teleop_simulation.py       # 键盘交互式差速小车遥控与城市建筑群物理仿真主入口
 │   ├── run_streaming_simulation.py    # GStreamer 双机位 (车载前向 + 全局监控) H.264 视讯推流仿真入口
 │   ├── run_autonomous_navigation.py   # 2.5D 高程感知、立体坡道爬坡与自主导航全闭环
@@ -81,7 +88,8 @@ mobile_robot_station/
     ├── test_math.py                   # 空间几何 SO(3)/SE(3) 李群李代数运算精度与微扰求导测试集
     ├── test_slam.py                   # 点云体素滤波、IMU 运动学追踪与点到面 ICP 配准收敛性测试集
     ├── test_navigation.py             # 2D 代价栅格切片膨胀、A* 寻路避障与 DWA 速度规划测试集
-    └── test_elevation_map.py          # 2.5D 地形高程估计、坡度梯度与台阶通行性测试集
+    ├── test_elevation_map.py          # 2.5D 地形高程估计、坡度梯度与台阶通行性测试集
+    └── test_msh.py                    # MSH 功能能力清单、地图持久化往返与 JSON-RPC 通信测试集
 ```
 
 ---
@@ -190,6 +198,29 @@ python scripts/run_autonomous_navigation.py --goal 0.0 6.0 --headless
 2. **右上 (3D 立体地形高程与自主爬坡轨迹)**：以三维曲面着色呈现坡度梯度，青色三维空间轨迹直观展现小车从地表 Z=0.00m 沿坡道稳步爬升至高台顶面 Z=0.12m 的立体运动流形；
 3. **左下 (车载双机位协同视讯)**：左侧为车载前视第一人称主驱视角（正对高台防护边沿），右侧为高空俯瞰全局监控视角（直观记录小车端正停驻在黄色警示边沿的高台中央）；
 4. **右下 (底盘动力学指令、车身爬坡俯仰角与距离收敛曲线)**：粉色目标残差从 12 米平滑单调收敛至 0 米；车身俯仰角 (Pitch) 在平地稳定于 -3.8 度，进入缓坡时平稳过渡至 -7.3 度，登顶后瞬间恢复水平，验证了零台阶平滑过渡与稳健越障能力。
+
+### 7. 启动 MSH 主控微服务总线与全车能力自省 (MSH Microservice Bus & Capabilities)
+MSH (Mobile Station Host) 作为移动机器人的唯一服务网关与中枢大脑，基于 TCP JSON-RPC 2.0 (默认端口 9001) 统管全车底盘遥控、SLAM 建图、地图持久化存储、自主导航与高频遥测。
+
+```bash
+# 启动 MSH 后台服务 (拉起 3D 原生视窗，初始化高程底图并监听 9001 端口)
+python scripts/run_msh_server.py
+
+# 在另一个终端使用 MSH 客户端一键查询机器人全套功能能力清单 (Capabilities Manifest)
+python -m msh.client --capabilities
+
+# 在终端查询小车瞬时状态
+python -m msh.client --status
+
+# 在终端下发遥控速度指令 (线速度 0.3m/s, 角速度 0.1rad/s)
+python -m msh.client --drive 0.3 0.1
+
+# 在终端远程下发自主导航目标点 (前往高台 0.0, 6.0)
+python -m msh.client --nav 0.0 6.0
+
+# 在终端紧急制动急停
+python -m msh.client --stop
+```
 
 ---
 
