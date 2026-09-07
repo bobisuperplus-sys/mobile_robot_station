@@ -89,7 +89,8 @@ mobile_robot_station/
     ├── test_slam.py                   # 点云体素滤波、IMU 运动学追踪与点到面 ICP 配准收敛性测试集
     ├── test_navigation.py             # 2D 代价栅格切片膨胀、A* 寻路避障与 DWA 速度规划测试集
     ├── test_elevation_map.py          # 2.5D 地形高程估计、坡度梯度与台阶通行性测试集
-    └── test_msh.py                    # MSH 功能能力清单、地图持久化往返与 JSON-RPC 通信测试集
+    ├── test_msh.py                    # MSH 功能能力清单、地图持久化往返与 JSON-RPC 通信测试集
+    └── test_streaming.py              # GStreamer 双机位 H.264 RTP 视讯推流与网络接收测试集
 ```
 
 ---
