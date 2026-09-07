@@ -24,56 +24,60 @@ class JSONRPCRequestHandler(socketserver.StreamRequestHandler):
     def handle(self) -> None:
         handler: ServiceHandler = self.server.service_handler  # type: ignore
 
-        for raw_line in self.rfile:
-            line = raw_line.decode("utf-8").strip()
-            if not line:
-                continue
+        try:
+            for raw_line in self.rfile:
+                line = raw_line.decode("utf-8").strip()
+                if not line:
+                    continue
 
-            req_id = None
-            response: Dict[str, Any] = {"jsonrpc": "2.0"}
+                req_id = None
+                response: Dict[str, Any] = {"jsonrpc": "2.0"}
 
-            try:
-                # 1. 解析 JSON 报文
                 try:
-                    payload = json.loads(line)
-                except Exception as err:
-                    response["error"] = {"code": -32700, "message": f"Parse error: {err}"}
-                    response["id"] = None
-                    self._send_response(response)
-                    continue
+                    # 1. 解析 JSON 报文
+                    try:
+                        payload = json.loads(line)
+                    except Exception as err:
+                        response["error"] = {"code": -32700, "message": f"Parse error: {err}"}
+                        response["id"] = None
+                        self._send_response(response)
+                        continue
 
-                if not isinstance(payload, dict):
-                    response["error"] = {"code": -32600, "message": "Invalid Request: expected JSON object"}
-                    response["id"] = None
-                    self._send_response(response)
-                    continue
+                    if not isinstance(payload, dict):
+                        response["error"] = {"code": -32600, "message": "Invalid Request: expected JSON object"}
+                        response["id"] = None
+                        self._send_response(response)
+                        continue
 
-                req_id = payload.get("id")
-                response["id"] = req_id
-                method = payload.get("method")
-                params = payload.get("params")
+                    req_id = payload.get("id")
+                    response["id"] = req_id
+                    method = payload.get("method")
+                    params = payload.get("params")
 
-                if not method or not isinstance(method, str):
-                    response["error"] = {"code": -32600, "message": "Invalid Request: missing method name"}
-                    self._send_response(response)
-                    continue
+                    if not method or not isinstance(method, str):
+                        response["error"] = {"code": -32600, "message": "Invalid Request: missing method name"}
+                        self._send_response(response)
+                        continue
 
-                # 2. 调度业务处理函数
-                try:
-                    result = handler.dispatch(method, params)
-                    response["result"] = result
-                except KeyError as err:
-                    response["error"] = {"code": -32601, "message": f"Method not found: {err}"}
-                except ValueError as err:
-                    response["error"] = {"code": -32602, "message": f"Invalid params: {err}"}
-                except Exception as err:
-                    response["error"] = {"code": -32603, "message": f"Internal error: {err}"}
+                    # 2. 调度业务处理函数
+                    try:
+                        result = handler.dispatch(method, params)
+                        response["result"] = result
+                    except KeyError as err:
+                        response["error"] = {"code": -32601, "message": f"Method not found: {err}"}
+                    except ValueError as err:
+                        response["error"] = {"code": -32602, "message": f"Invalid params: {err}"}
+                    except Exception as err:
+                        response["error"] = {"code": -32603, "message": f"Internal error: {err}"}
 
-            except Exception as outer_err:
-                response["error"] = {"code": -32603, "message": f"Server error: {outer_err}"}
-                response["id"] = req_id
+                except Exception as outer_err:
+                    response["error"] = {"code": -32603, "message": f"Server error: {outer_err}"}
+                    response["id"] = req_id
 
-            self._send_response(response)
+                self._send_response(response)
+        except (ConnectionResetError, BrokenPipeError, ConnectionAbortedError):
+            # 客户端正常断开连接或进程退出
+            pass
 
     def _send_response(self, response: Dict[str, Any]) -> None:
         """发送 JSON 响应行"""

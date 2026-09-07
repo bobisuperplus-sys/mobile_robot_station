@@ -67,15 +67,15 @@ class GlobalPlannerAStar:
         if not self.costmap.is_in_bounds(gu, gv):
             return None
 
-        # 目标点若是致命障碍，尝试在小范围内搜寻最近可通行邻近点
+        # 目标点若是致命障碍，在周围搜寻最近最低代价的可通行邻近点
         if self.costmap.is_lethal(gu, gv):
-            gu, gv = self._find_nearest_free(gu, gv, max_radius=10)
+            gu, gv = self._find_nearest_free(gu, gv, max_radius=24)
             if gu is None or gv is None:
                 return None
 
-        # 起点若位于轻微碰撞区，尝试逃逸至最近安全点
+        # 起点若位于碰撞膨胀区或紧贴障碍，安全逃逸至最近开阔通行点
         if self.costmap.is_lethal(su, sv):
-            su, sv = self._find_nearest_free(su, sv, max_radius=6)
+            su, sv = self._find_nearest_free(su, sv, max_radius=24)
             if su is None or sv is None:
                 return None
 
@@ -218,20 +218,25 @@ class GlobalPlannerAStar:
         return path
 
     def _find_nearest_free(
-        self, u: int, v: int, max_radius: int = 8
+        self, u: int, v: int, max_radius: int = 24
     ) -> Tuple[Optional[int], Optional[int]]:
-        """在以 (u, v) 为中心的方框螺旋环中搜索最近非致命通行点"""
+        """在以 (u, v) 为中心的方框螺旋环中搜索最近且代价值最低的非致命通行点"""
         for r in range(1, max_radius + 1):
+            candidates = []
             for du in range(-r, r + 1):
                 for dv in (-r, r):
                     nu, nv = u + du, v + dv
                     if self.costmap.is_in_bounds(nu, nv) and not self.costmap.is_lethal(nu, nv):
-                        return nu, nv
+                        candidates.append((self.costmap.get_cost(nu, nv), nu, nv))
             for dv in range(-r + 1, r):
                 for du in (-r, r):
                     nu, nv = u + du, v + dv
                     if self.costmap.is_in_bounds(nu, nv) and not self.costmap.is_lethal(nu, nv):
-                        return nu, nv
+                        candidates.append((self.costmap.get_cost(nu, nv), nu, nv))
+            if candidates:
+                # 优先选择当前层代价最低（最开阔）的安全航点
+                candidates.sort(key=lambda item: item[0])
+                return candidates[0][1], candidates[0][2]
         return None, None
 
     def _smooth_path(self, path: List[Tuple[int, int]]) -> List[Tuple[int, int]]:

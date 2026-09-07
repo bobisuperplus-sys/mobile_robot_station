@@ -7,6 +7,7 @@ MuJoCo 仿真物理世界封装模块 (World Simulation Manager)
 
 import os
 import math
+import threading
 import numpy as np
 
 try:
@@ -52,6 +53,7 @@ class UrbanWorldSimulation:
         self._renderer = None
         self._render_width = 640
         self._render_height = 480
+        self._lock = threading.RLock()
 
     @property
     def timestep(self) -> float:
@@ -60,37 +62,43 @@ class UrbanWorldSimulation:
 
     def apply_wheel_controls(self, w_left: float, w_right: float):
         """向左驱动轮与右驱动轮下发角速度目标 (rad/s)"""
-        self.data.ctrl[self.left_motor_id] = float(w_left)
-        self.data.ctrl[self.right_motor_id] = float(w_right)
+        with self._lock:
+            self.data.ctrl[self.left_motor_id] = float(w_left)
+            self.data.ctrl[self.right_motor_id] = float(w_right)
 
     def step(self):
         """单步物理推进"""
-        mujoco.mj_step(self.model, self.data)
+        with self._lock:
+            mujoco.mj_step(self.model, self.data)
 
     def get_robot_position(self) -> np.ndarray:
         """获取小车当前世界坐标 [x, y, z] (单位: 米)"""
-        return np.copy(self.data.xpos[self.robot_body_id])
+        with self._lock:
+            return np.copy(self.data.xpos[self.robot_body_id])
 
     def get_robot_orientation(self) -> np.ndarray:
         """获取小车当前世界位姿四元数 [w, x, y, z]"""
-        return np.copy(self.data.xquat[self.robot_body_id])
+        with self._lock:
+            return np.copy(self.data.xquat[self.robot_body_id])
 
     def get_robot_yaw(self) -> float:
         """从底盘位姿四元数计算航向角 Yaw (单位: 弧度)"""
-        quat = self.data.xquat[self.robot_body_id]
-        w, x, y, z = quat[0], quat[1], quat[2], quat[3]
-        siny_cosp = 2.0 * (w * z + x * y)
-        cosy_cosp = 1.0 - 2.0 * (y * y + z * z)
-        return math.atan2(siny_cosp, cosy_cosp)
+        with self._lock:
+            quat = self.data.xquat[self.robot_body_id]
+            w, x, y, z = quat[0], quat[1], quat[2], quat[3]
+            siny_cosp = 2.0 * (w * z + x * y)
+            cosy_cosp = 1.0 - 2.0 * (y * y + z * z)
+            return math.atan2(siny_cosp, cosy_cosp)
 
     def get_raw_imu_telemetry(self) -> dict[str, np.ndarray]:
         """获取物理引擎原生未滤波的理想 6 轴 IMU 加速度 (m/s^2) 与角速度 (rad/s)"""
-        accel = np.copy(self.data.sensor("imu_accel").data)
-        gyro = np.copy(self.data.sensor("imu_gyro").data)
-        return {
-            "acceleration": accel,
-            "angular_velocity": gyro,
-        }
+        with self._lock:
+            accel = np.copy(self.data.sensor("imu_accel").data)
+            gyro = np.copy(self.data.sensor("imu_gyro").data)
+            return {
+                "acceleration": accel,
+                "angular_velocity": gyro,
+            }
 
     def get_realistic_imu_telemetry(self) -> dict[str, np.ndarray]:
         """获取注入白噪声与随机游走偏置的高保真 IMU 遥测数据"""
@@ -107,13 +115,14 @@ class UrbanWorldSimulation:
         :param return_world_frame: 若为 True 返回全局世界坐标点云，若为 False 返回小车局部系点云
         :return: 包含 points (K, 3), intensities (K,), rings (K,) 等数据的字典
         """
-        return self.lidar.scan(
-            model=self.model,
-            data=self.data,
-            lidar_site_name="lidar_site",
-            robot_body_name="base_link",
-            return_world_frame=return_world_frame,
-        )
+        with self._lock:
+            return self.lidar.scan(
+                model=self.model,
+                data=self.data,
+                lidar_site_name="lidar_site",
+                robot_body_name="base_link",
+                return_world_frame=return_world_frame,
+            )
 
     def render_camera(self, camera_name: str = "front_cam", width: int = 640, height: int = 480) -> np.ndarray:
         """
@@ -123,10 +132,11 @@ class UrbanWorldSimulation:
         :param height: 画面高度 (默认 480)
         :return: (height, width, 3) 的 uint8 RGB 数组
         """
-        if self._renderer is None or self._render_width != width or self._render_height != height:
-            self._render_width = width
-            self._render_height = height
-            self._renderer = mujoco.Renderer(self.model, height=height, width=width)
+        with self._lock:
+            if self._renderer is None or self._render_width != width or self._render_height != height:
+                self._render_width = width
+                self._render_height = height
+                self._renderer = mujoco.Renderer(self.model, height=height, width=width)
 
-        self._renderer.update_scene(self.data, camera=camera_name)
-        return self._renderer.render()
+            self._renderer.update_scene(self.data, camera=camera_name)
+            return self._renderer.render()

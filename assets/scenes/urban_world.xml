@@ -4,16 +4,17 @@
   <option timestep="0.005" integrator="implicitfast" gravity="0 0 -9.81"/>
 
   <visual>
-    <headlight diffuse="0.7 0.7 0.7" ambient="0.3 0.3 0.3" specular="0.1 0.1 0.1"/>
-    <rgba haze="0.2 0.3 0.4 1"/>
+    <headlight diffuse="0.85 0.85 0.85" ambient="0.45 0.45 0.45" specular="0.15 0.15 0.15"/>
+    <rgba haze="0 0 0 0"/>
     <global azimuth="-135" elevation="-25"/>
+    <map znear="0.0005" zfar="60.0"/>
   </visual>
 
   <asset>
     <!-- 天空盒与环境贴图 -->
-    <texture type="skybox" builtin="gradient" rgb1="0.4 0.6 0.8" rgb2="0.1 0.15 0.25" width="512" height="512"/>
-    <texture name="asphalt_tex" type="2d" builtin="checker" rgb1="0.15 0.15 0.16" rgb2="0.18 0.18 0.19" width="512" height="512" mark="cross" markrgb="0.3 0.3 0.3"/>
-    <material name="asphalt_mat" texture="asphalt_tex" texrepeat="20 20" reflectance="0.05" roughness="0.8"/>
+    <texture type="skybox" builtin="gradient" rgb1="0.5 0.72 0.95" rgb2="0.2 0.35 0.55" width="512" height="512"/>
+    <texture name="asphalt_tex" type="2d" builtin="checker" rgb1="0.22 0.23 0.25" rgb2="0.26 0.27 0.29" width="512" height="512" mark="cross" markrgb="0.38 0.38 0.38"/>
+    <material name="asphalt_mat" texture="asphalt_tex" texrepeat="12 12" reflectance="0.0" roughness="0.9"/>
 
     <!-- 建筑与装饰材质 -->
     <material name="building_grey" rgba="0.65 0.68 0.72 1" reflectance="0.1"/>
@@ -27,14 +28,15 @@
   </asset>
 
   <worldbody>
-    <!-- 定向日光光源 -->
-    <light pos="5 -5 18" dir="-0.3 0.3 -1" directional="true" diffuse="0.85 0.85 0.8" specular="0.3 0.3 0.3" castshadow="true"/>
+    <!-- 定向日光主光源与环境补光 -->
+    <light pos="5 -5 18" dir="-0.3 0.3 -1" directional="true" diffuse="1.05 1.02 0.98" specular="0.35 0.35 0.35" castshadow="true"/>
+    <light pos="-6 6 12" dir="0.3 -0.3 -0.8" directional="true" diffuse="0.45 0.48 0.52" specular="0.1 0.1 0.1"/>
 
     <!-- 全局高空透视监控相机 (Overview Cam) -->
     <camera name="overview_cam" pos="0 -15 12" xyaxes="1 0 0 0 0.64 0.77" fovy="65"/>
 
-    <!-- 1. 地面基座 (26m x 26m 沥青测试场) -->
-    <geom name="ground" type="plane" size="14 14 0.1" material="asphalt_mat" friction="1.2 0.005 0.0001"/>
+    <!-- 1. 地面基座 (28m x 28m 实心沥青厚板地面，无重叠、无透空、无镜面倒影，绝对平整) -->
+    <geom name="ground" type="box" size="14 14 0.5" pos="0 0 -0.5" material="asphalt_mat" friction="1.2 0.005 0.0001"/>
 
     <!-- 2. 外围封闭建筑群围墙 (高 4.0m，彻底防止小车出界，为激光雷达提供远距离大平面约束) -->
     <geom name="wall_north" type="box" size="13 0.3 2.0" pos="0 13 2.0" material="building_dark"/>
@@ -107,8 +109,13 @@
     <body name="elevated_ramp_platform" pos="0 0 0">
       <!-- 零台阶平顺入地缓坡 (宽 2.0m，坡度仅 3.4 度/0.06rad，南端深沉入地消灭突唇，北侧无缝平顺衔接高台 Z=0.12m) -->
       <geom name="access_ramp" type="box" size="1.0 1.30 0.04" pos="0 3.7 0.002" euler="0.060 0 0" material="asphalt_mat" friction="1.5 0.005 0.0001"/>
+      <geom name="access_ramp_base" type="box" size="1.05 1.30 0.10" pos="0 3.7 -0.10" group="3" material="building_dark"/>
       <!-- 高台基座 (标高 Z=0.12m，尺寸 2.2m x 2.0m，中心 Y=6.0，Z_pos=0.06) -->
       <geom name="platform_deck" type="box" size="1.1 1.0 0.06" pos="0 6.0 0.06" material="building_grey" friction="1.5 0.005 0.0001"/>
+            <!-- 缓坡西侧防护警示护栏 -->
+      <geom name="ramp_curb_west" type="box" size="0.05 1.30 0.06" pos="-1.05 3.7 0.08" euler="0.060 0 0" material="curb_yellow"/>
+      <!-- 缓坡东侧防护警示护栏 -->
+      <geom name="ramp_curb_east" type="box" size="0.05 1.30 0.06" pos="1.05 3.7 0.08" euler="0.060 0 0" material="curb_yellow"/>
       <!-- 高台西侧防护警示边沿 -->
       <geom type="box" size="0.05 1.0 0.03" pos="-1.1 6.0 0.15" material="curb_yellow"/>
       <!-- 高台东侧防护警示边沿 -->

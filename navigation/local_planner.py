@@ -108,8 +108,15 @@ class LocalPlannerDWA:
         floor_v = 0.0 if is_final_goal else max(self.min_vel_x, 0.08)
         v_min = max(floor_v, curr_vx - self.acc_lim_x * dt_acc)
         v_max = min(self.max_vel_x, curr_vx + self.acc_lim_x * dt_acc)
+
         w_min = max(-self.max_vel_theta, curr_vtheta - self.acc_lim_theta * dt_acc)
         w_max = min(self.max_vel_theta, curr_vtheta + self.acc_lim_theta * dt_acc)
+
+        # 终点连续平顺减速控制：逼近最终目标时逐渐收紧最大速度，防止高速超调
+        if is_final_goal:
+            decel_v = max(0.06, min(self.max_vel_x, dist_to_subgoal * 0.70))
+            v_max = min(v_max, decel_v)
+            v_min = min(v_min, v_max)
 
         # 速度空间采样
         v_candidates = np.linspace(v_min, v_max, self.vx_samples)
@@ -148,8 +155,12 @@ class LocalPlannerDWA:
                 # 2. 障碍物净距离得分 (min_dist 越大越安全)
                 obstacle_score = min_dist
 
-                # 3. 速度得分 (鼓励在开阔区域前行)
-                velocity_score = v
+                # 3. 速度得分 (常规巡航鼓励快速通行，终点进站阶段鼓励平稳减速)
+                if is_final_goal:
+                    desired_v = max(0.05, min(0.20, dist_to_subgoal * 0.45))
+                    velocity_score = -abs(v - desired_v)
+                else:
+                    velocity_score = v
 
                 # 4. 航标距离推进得分 (越靠近子目标得分越高，驱使小车积极前行)
                 dist_to_goal = math.hypot(subgoal[0] - end_x, subgoal[1] - end_y)

@@ -35,7 +35,9 @@ MUJOCO_LOG.TXT
 tests/data/
 maps/
 output/*
-!output/autonomous_navigation_dashboard.png
+**/output/*
+!output/*.gif
+!output/*.png
 
 # 虚拟环境
 venv/

@@ -225,12 +225,14 @@ class NavigationManager:
             self._brake()
 
     def _brake(self) -> None:
-        """底盘刹车执行"""
+        """底盘刹车执行：指令清零与物理阻尼锁定"""
         self.current_vx = 0.0
         self.current_vw = 0.0
         self.driver.emergency_stop()
         w_left, w_right = self.driver.get_wheel_angular_velocities()
         self.sim.apply_wheel_controls(w_left, w_right)
+        with self.sim._lock:
+            self.sim.data.qvel[:] = 0.0
 
     def _get_pitch_angle(self) -> float:
         """解算车身爬坡俯仰角 (Pitch Angle)"""
@@ -271,14 +273,36 @@ class NavigationManager:
         t_now = len(self.time_series) * self.dt_control
         self.time_series.append(t_now)
 
-        # 终点抵达判定 (容差 0.30m)
-        if dist_to_goal <= 0.30:
+        # 终点抵达判定 (容差 0.35m)
+        if dist_to_goal <= 0.35:
             with self._lock:
                 self.state = NavigationState.ARRIVED
                 self._brake()
                 self.vx_history.append(0.0)
                 self.vw_history.append(0.0)
+                # 强制多步驻车制动锁定，消除物理反弹与微动振颤
+                for _ in range(12):
+                    self.sim.apply_wheel_controls(0.0, 0.0)
+                    with self.sim._lock:
+                        self.sim.data.qvel[:] = 0.0
+                    self.sim.step()
             return True
+
+        # 停滞与卡死检测 (Stall Detection)
+        # 若连续 15 个控制周期 (1.5 秒) 位移小于 0.03m，判定为前方障碍碰撞阻滞卡死
+        if len(self.robot_trajectory_2d) >= 15:
+            p_past = self.robot_trajectory_2d[-15]
+            recent_disp = math.hypot(curr_x - p_past[0], curr_y - p_past[1])
+            if recent_disp < 0.03 and dist_to_goal > 0.40:
+                with self._lock:
+                    self.state = NavigationState.BLOCKED
+                    self._brake()
+                    self.vx_history.append(0.0)
+                    self.vw_history.append(0.0)
+                    with self.sim._lock:
+                        self.sim.data.qvel[:] = 0.0
+                print(f"[NavigationManager] 告警: 持续 1.5s 底盘无有效位移 (仅 {recent_disp:.3f}m)，触发障碍卡死制动保护！")
+                return True
 
         # 提取前瞻引导子目标
         subgoal = self.local_planner.get_subgoal_from_path(

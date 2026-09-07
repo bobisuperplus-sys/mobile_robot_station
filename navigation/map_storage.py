@@ -32,6 +32,8 @@ class MapStorage:
     ELEVATION_DATA_FILENAME = "elevation_data.npz"
     POINT_CLOUD_FILENAME = "point_cloud.ply"
     TRAVERSABILITY_IMG_FILENAME = "traversability.png"
+    ELEVATION_TEXTURE_FILENAME = "elevation_texture.png"
+    ELEVATION_HEATMAP_FILENAME = "elevation_heatmap.png"
 
     @classmethod
     def save_map(
@@ -84,7 +86,17 @@ class MapStorage:
         cls._render_traversability_image(png_path, elevation_map)
         saved_files["traversability_img"] = png_path
 
-        # 4. 生成标准化元数据配置文件 (.yaml)
+        # 4. 导出 2.5D 高程矩阵 RGBA 贴图 (.png)
+        tex_path = os.path.join(target_dir, cls.ELEVATION_TEXTURE_FILENAME)
+        cls._render_elevation_texture(tex_path, elevation_map)
+        saved_files["elevation_texture"] = tex_path
+
+        # 5. 导出专业 2.5D 高程标尺热力图 (.png)
+        heat_path = os.path.join(target_dir, cls.ELEVATION_HEATMAP_FILENAME)
+        cls._render_elevation_heatmap(heat_path, elevation_map)
+        saved_files["elevation_heatmap"] = heat_path
+
+        # 6. 生成标准化元数据配置文件 (.yaml)
         now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         metadata: Dict[str, Any] = {
             "format_version": "1.0.0",
@@ -308,3 +320,53 @@ class MapStorage:
         plt.tight_layout()
         plt.savefig(file_path, facecolor=fig.get_facecolor(), edgecolor="none")
         plt.close()
+
+    @staticmethod
+    def _render_elevation_texture(file_path: str, elev_map: ElevationMap2D) -> None:
+        """导出纯 2.5D 高程矩阵 RGBA 贴图，供上位机地面站无损投影使用"""
+        import matplotlib.colors as mcolors
+        from PIL import Image
+
+        norm = mcolors.Normalize(vmin=0.0, vmax=0.45, clip=True)
+        cmap = plt.get_cmap("terrain")
+        rgba = cmap(norm(elev_map.elevation_array))
+        rgba_img = (np.flipud(rgba) * 255).astype(np.uint8)
+        img = Image.fromarray(rgba_img)
+        img.save(file_path)
+
+    @staticmethod
+    def _render_elevation_heatmap(file_path: str, elev_map: ElevationMap2D) -> None:
+        """导出专业 2.5D 高程热力图与科学色彩标尺 (DEM Heatmap with Colorbar)"""
+        fig, ax = plt.subplots(figsize=(8, 8), dpi=120)
+        fig.patch.set_facecolor("#0b0e14")
+        ax.set_facecolor("#06080c")
+
+        extent = [
+            elev_map.origin_x,
+            elev_map.origin_x + elev_map.size_x,
+            elev_map.origin_y,
+            elev_map.origin_y + elev_map.size_y,
+        ]
+        im = ax.imshow(
+            elev_map.elevation_array,
+            origin="lower",
+            extent=extent,
+            cmap="terrain",
+            vmin=0.0,
+            vmax=0.45,
+            alpha=0.95,
+        )
+        cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+        cbar.set_label("Elevation Z (m)", color="#b0b8c4", fontsize=9)
+        cbar.ax.tick_params(colors="#8892a0", labelsize=8)
+
+        ax.set_title(f"2.5D Elevation Map ({elev_map.nx}x{elev_map.ny})", color="white", fontsize=10, pad=8)
+        ax.tick_params(colors="#8892a0", labelsize=8)
+        ax.set_xlabel("World X (m)", color="#b0b8c4", fontsize=8)
+        ax.set_ylabel("World Y (m)", color="#b0b8c4", fontsize=8)
+        ax.grid(True, color="#1e232d", linestyle=":", alpha=0.5)
+
+        plt.tight_layout()
+        plt.savefig(file_path, facecolor=fig.get_facecolor(), edgecolor="none")
+        plt.close()
+

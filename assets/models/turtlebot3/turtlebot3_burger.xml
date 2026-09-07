@@ -6,7 +6,7 @@
       <geom group="1" type="mesh" contype="0" conaffinity="0"/>
     </default>
     <default class="collision">
-      <geom group="0" rgba="0.8 0.8 0.8 1" solref="0.01 1" solimp="0.9 0.95 0.001 0.5 2"/>
+      <geom group="3" rgba="0 0 0 0" solref="0.01 1" solimp="0.9 0.95 0.001 0.5 2"/>
     </default>
     <default class="wheel">
       <geom group="0" type="cylinder" size="0.033 0.009" zaxis="0 1 0" friction="1.5 0.005 0.0001" condim="3" solref="0.01 1" solimp="0.9 0.95 0.001 0.5 2"/>
@@ -37,17 +37,21 @@
       <geom type="mesh" mesh="burger_base" pos="0 0 0" class="visual" material="dark_grey"/>
       <geom type="mesh" mesh="lds" pos="-0.032 0 0.172" class="visual" material="sensor_black"/>
 
-      <!-- 底盘物理碰撞体 (轻量几何体，确保 CPU 毫秒级解算) -->
-      <geom type="cylinder" size="0.075 0.045" pos="-0.032 0 0.065" class="collision" mass="0.82"/>
+      <!-- 底盘物理碰撞体 (加宽前部防护半径与防穿墙缓冲球，彻底杜绝相机穿墙) -->
+      <geom type="cylinder" size="0.105 0.045" pos="0 0 0.065" class="collision" mass="0.80"/>
+      <geom type="sphere" size="0.025" pos="0.080 0 0.065" class="collision" mass="0.02"/>
 
-      <!-- 四维平衡稳定支点 (前后万向轮 + 左右防侧翻安全触点，确保爬坡时主动轮紧密贴地且不刮擦) -->
-      <geom type="sphere" size="0.007" pos="0.040 0 0.000" friction="0.005 0.005 0.0001" condim="1" class="collision" mass="0.02"/>
-      <geom type="sphere" size="0.007" pos="-0.040 0 0.000" friction="0.005 0.005 0.0001" condim="1" class="collision" mass="0.02"/>
-      <geom type="sphere" size="0.005" pos="0 0.065 0.002" friction="0.005 0.005 0.0001" condim="1" class="collision" mass="0.01"/>
-      <geom type="sphere" size="0.005" pos="0 -0.065 0.002" friction="0.005 0.005 0.0001" condim="1" class="collision" mass="0.01"/>
+      <!-- 平衡稳定支点 (前后顺滑脚轮 + 高位防侧翻安全触点，杜绝多点地面超静定干涉) -->
+      <geom type="sphere" size="0.006" pos="0.040 0 0.000" friction="0.01 0.005 0.0001" condim="1" class="collision" mass="0.02"/>
+      <geom type="sphere" size="0.006" pos="-0.040 0 0.000" friction="0.01 0.005 0.0001" condim="1" class="collision" mass="0.02"/>
+      <geom type="sphere" size="0.004" pos="0 0.065 0.012" friction="0.05 0.005 0.0001" condim="1" class="collision" mass="0.01"/>
+      <geom type="sphere" size="0.004" pos="0 -0.065 0.012" friction="0.05 0.005 0.0001" condim="1" class="collision" mass="0.01"/>
 
-      <!-- 车载前视第一人称感知相机 (FPV Driver & Perception Cam) -->
-      <camera name="front_cam" pos="0.05 0 0.12" xyaxes="0 -1 0 0.17 0 0.98" fovy="60"/>
+      <!-- 车载前视第一人称感知相机 (FPV Driver & Perception Cam: 适度前移并抬高至 0.15m，仰俯微调至 -4.5° 黄金驾驶视野) -->
+      <camera name="front_cam" pos="0.08 0 0.15" xyaxes="0 -1 0 0.08 0 0.997" fovy="60"/>
+
+      <!-- 车载后向 45 度第三人称跟车俯瞰相机 (Third-person 45° Follow Cam) -->
+      <camera name="third_person_cam" pos="-1.0 0 0.7" xyaxes="0 -1 0 0.58 0 0.81" fovy="60"/>
 
       <!-- 传感器安装站点 (Site) -->
       <site name="imu_site" pos="0 0 0.068" size="0.008" rgba="1 0 0 1"/>
@@ -55,7 +59,7 @@
 
       <!-- 左驱动轮 -->
       <body name="wheel_left_link" pos="0 0.080 0.023">
-        <joint name="wheel_left_joint" type="hinge" axis="0 1 0" damping="0.05"/>
+        <joint name="wheel_left_joint" type="hinge" axis="0 1 0" damping="0.12"/>
         <inertial mass="0.08" pos="0 0 0" diaginertia="0.0005 0.001 0.0005"/>
         <geom class="wheel" mass="0.05" material="tire_black"/>
         <geom type="mesh" mesh="left_tire" pos="0 0 0" class="visual" material="tire_black"/>
@@ -63,7 +67,7 @@
 
       <!-- 右驱动轮 -->
       <body name="wheel_right_link" pos="0 -0.080 0.023">
-        <joint name="wheel_right_joint" type="hinge" axis="0 1 0" damping="0.05"/>
+        <joint name="wheel_right_joint" type="hinge" axis="0 1 0" damping="0.12"/>
         <inertial mass="0.08" pos="0 0 0" diaginertia="0.0005 0.001 0.0005"/>
         <geom class="wheel" mass="0.05" material="tire_black"/>
         <geom type="mesh" mesh="right_tire" pos="0 0 0" class="visual" material="tire_black"/>

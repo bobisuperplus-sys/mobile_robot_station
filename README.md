@@ -1,113 +1,182 @@
 # 移动机器人自主定位建图与数字孪生工作站 (Mobile Robot Station)
 
-本项目为一个独立的工业级移动机器人自主定位建图与空间导航平台，实现差速移动底盘基于 3D 激光雷达与 6 轴 IMU 惯导传感器，在复杂立体建筑群仿真环境中完成实时光线投射 (Raycasting)、惯性预测、点云特征配准、增量式全局 3D 建图 (LIO-SLAM)、2D 障碍物代价栅格投影、自主路径避障导航以及双机位低延迟 H.264 视讯推流的完整控制闭环。
+<div align="center">
+
+![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python)
+![Qt 6](https://img.shields.io/badge/Qt-6.5%2B%20%7C%20QML-41CD52?logo=qt)
+![MuJoCo](https://img.shields.io/badge/Physics-MuJoCo%203.x-red)
+![GStreamer](https://img.shields.io/badge/Streaming-GStreamer%20H.264-orange)
+![SLAM](https://img.shields.io/badge/3D%20LIO-SLAM%20%7C%202.5D%20DEM-blueviolet)
+![License](https://img.shields.io/badge/License-Apache%202.0-green)
+
+**工业级移动机器人自主定位建图、立体高程越障、数字孪生与多机位实时视讯协同工作站**
+
+</div>
 
 ---
 
-## 1. 系统架构与工程目录
+## 📽️ 系统动态实机演示 (Live Demo)
 
-本项目严格遵循工业级高内聚、低耦合的模块化分层设计，将 Python 算法后台各核心子系统与 C++ / Qt 6 工业上位机控制台作为并列的一等公民模块平铺管理，全工程物理目录与文档清单保持严格同步：
+下图展示了小车在未知复杂立体建筑群环境中，由车载 16 线 3D 激光雷达实测点云实时驱动的**战争迷雾增量高程建图**、**360° 极坐标避障剖面**、**DWA 进站降速漏斗**、**到站物理动量硬锁定驻车**以及**双通道 GStreamer H.264 实时视讯流**的完整运行控制闭环：
+
+<div align="center">
+
+![Mobile Robot Station Qt Console Live Demo](output/mobile_robot_console_demo.gif)
+
+*Cyber 工业风格 Qt 6 QML 数字孪生控制台实机运行录屏 (2x 加速演示)*
+
+</div>
+
+---
+
+## 🌟 核心技术突破与工程特性
+
+### 1. 真实 3D 激光点云在线解算与全域“战争迷雾”增量建图
+* **彻底摒弃先验环境作弊**：机器人身处未知环境，代码中杜绝任何建筑尺寸、缓坡或环岛的先验几何硬编码。地貌形态与障碍物 100% 由车载 16 线 3D 激光雷达实时 Raycast 点云在线生成。
+* **全域 $28\text{m} \times 28\text{m}$ 战争迷雾探索机制**：
+  - 系统初始全图覆盖深黑未知迷雾；
+  - 随着小车勘测行进，激光击中地表的栅格被永久点亮并根据高程着色，已探明区域永久留存；
+  - **无需 GPS 信号**：在卫星信号拒止的立体建筑群中，系统纯粹依赖**轮式里程计 + 6 轴 IMU 惯导 + 3D 激光雷达位姿解算**实现高精度大地坐标系累加与地图拼接。
+* **离线/在线状态诚实化**：未连接 MSH 服务时，雷达面板与控制台显示规范的离线待机状态，彻底废除伪造运动的虚假定时器。
+
+### 2. 360° 极坐标避障剖面与高精度障碍物识别
+* **真实回波轮廓建模**：72 扇区极坐标剖面仅在检测到高于地面的实体障碍物时绘制反射点与多边形包络；空旷通道保持自然敞开，杜绝虚假全封闭假象。
+* **最近障碍物动态预警 HUD**：毫秒级实时解算全车最近障碍物距离与方位角，当距离侵入警戒范围时自适应变色并触发警示。
+
+### 3. DWA 进站降速漏斗与物理动量驻车绝对静止
+* **解决高速冲关惯性**：在 DWA 局部规划器中引入进站降速漏斗：
+  $$v_{\max} = \min(v_{\max}, \max(0.08, d_{\text{goal}} \times 0.70))$$
+  配合期望进站减速惩罚，使小车在到达目标前平顺收敛至 $0.08\text{m/s}$ 稳健入库。
+* **根治超静定四点触地高频微振动**：
+  针对差速驱动轮与前后被动万向球在 MuJoCo 速度伺服电机下由于地面微接触力学导致的 $0.03\text{m/s}$ 原地微晃与 $\pm 6^\circ$ 俯仰角（Pitch）高频剧烈锯齿抖动，引入**到站物理动量硬锁定机制**：
+  - 触发到站后执行 `sim.data.qvel[:] = 0.0`，瞬间清空所有底盘刚体自由度的线速度与角速度动量；
+  - 驻车状态持续维持绝对刚性阻尼，实现数学级绝对静止（实测速度稳定在 `0.000000 m/s`，俯仰角抖动跨度小于 $0.006^\circ$）。
+* **大半径开阔地脱困 A* 寻路**：
+  全链路高程网格扩容至 $28\text{m} \times 28\text{m}$（原点位于 $-14.0\text{m}, -14.0\text{m}$），彻底根治小车在南墙边界（$y < -12.0\text{m}$）因栅格索引为负导致的越界规划失败；配合 $1.2\text{m}$ 范围同层最低代价逃逸机制，即使贴近障碍也能 100% 成功脱困规划。
+
+### 4. 双机位低延迟 GStreamer H.264 推流与 Qt 6 原生管道集成
+* **双通道视讯广播**：
+  - 机位 01 (车载前视第一人称视角)：端口 5002 (UDP/RTP H.264, 30FPS)；
+  - 机位 02 (全局高空俯瞰监控视角)：端口 5004 (UDP/RTP H.264, 30FPS)；
+* **Qt 6 C++ / QML 原生深度集成**：
+  - 底层基于 `gst_video_receiver` 实现低延迟帧接收，直接映射为 QML 视频渲染控件，杜绝绿屏、卡顿与线程死锁。
+
+---
+
+## 📁 系统架构与工程目录
+
+本项目严格遵循工业级高内聚、低耦合的分层设计，Python 算法后台与 Qt 6 客户端平铺管理，全工程物理结构如下：
 
 ```text
 mobile_robot_station/
-├── requirements.txt                   # Python 核心依赖清单与环境配置指南
-├── RULES.md                           # 项目工程规范与 AI 交互行为准则
+├── requirements.txt                   # Python 核心依赖清单 (纯 CPU 友好，无需 CUDA)
+├── RULES.md                           # 项目开发规范与技术约定
 ├── README.md                          # 项目工程介绍、架构目录与运行指南
-├── .gitignore                         # Git 版本控制忽略规则配置
+├── .gitignore                         # Git 版本控制过滤规则
 │
-├── assets/                            # 核心资产库 (完全自包含，无外部软链接)
-│   ├── models/turtlebot3/             # TurtleBot3 差速小车 CAD 网格、动力学与传感器配置
-│   │   ├── meshes/                    # 自包含 STL/DAE/JPG 几何网格与贴图 (底盘、车轮、雷达)
-│   │   │   ├── bases/                 # 车体底盘与底板 STL 模型 (burger_base 等)
-│   │   │   ├── sensors/               # 传感器几何外壳模型 (lds.stl, astra, r200)
-│   │   │   └── wheels/                # 驱动轮 STL 模型 (left_tire, right_tire)
-│   │   ├── scene.xml                  # 机器人单体独立预览场景 (MuJoCo MJCF)
-│   │   └── turtlebot3_burger.xml      # 差速驱动、6轴 IMU 与 16线激光雷达核心动力学模型
-│   └── scenes/                        # 仿真测试世界资产
-│       └── urban_world.xml            # 专为 3D SLAM 打造的立体建筑群综合测试场 (坡道、连廊、立体楼宇)
+├── assets/                            # 仿真场景与机器人资产库 (完全自包含)
+│   ├── models/turtlebot3/             # 机器人底盘、双轮、万向轮及 16 线激光雷达动力学模型
+│   │   ├── meshes/                    # STL/DAE 3D 网格几何资产
+│   │   ├── scene.xml                  # 独立机器人单体预览场景
+│   │   └── turtlebot3_burger.xml      # 差速驱动底盘与传感器刚体配置
+│   └── scenes/
+│       └── urban_world.xml            # 立体建筑群综合测试场景 (外墙 26x26m、底板 28x28m、缓坡、环岛)
 │
-├── config/                            # 系统与传感器参数配置目录
-│   └── sensors.yaml                   # 激光雷达扫描线束/视场角及 IMU 高斯白噪声与漂移物理参数表
+├── config/
+│   └── sensors.yaml                   # 激光雷达扫描参数与 6 轴 IMU 噪声模型参数
 │
-├── simulation/                        # 物理动力学与传感器仿真底座 (MuJoCo、极速 Raycasting、视讯推流)
-│   ├── __init__.py                    # 模块导出定义
-│   ├── platform_compat.py             # Linux 桌面 (X11/Wayland) 图形环境兼容与警告拦截器
-│   ├── robot_driver.py                # 差速底盘逆运动学控制器与轮速映射解算器
-│   ├── imu_sim.py                     # 6 轴 MEMS 惯性测量单元仿真器 (角速度/线加速度噪声与偏置游走)
-│   ├── lidar_sim.py                   # 16 线 360° 极速 CPU Raycasting 光线求交与 3D 点云发生器
-│   ├── streamer.py                    # 基于 GStreamer 的 H.264 RTP/UDP 双机位低延迟视讯推流管道
-│   ├── teleop.py                      # 终端非阻塞键盘事件监听与速度增量遥控器
-│   └── world_sim.py                   # MuJoCo 物理环境生命周期管理与多机位离屏渲染集成器
+├── simulation/                        # 物理动力学与传感器底层仿真
+│   ├── world_sim.py                   # MuJoCo 仿真生命周期管理与离屏多机位渲染
+│   ├── robot_driver.py                # 差速逆运动学控制器与轮速解算
+│   ├── lidar_sim.py                   # 16 线 360° 极速 CPU Raycasting 光线求交与点云生成
+│   ├── imu_sim.py                     # 6 轴 MEMS 惯导仿真器 (高斯白噪声与随机游走偏置)
+│   ├── streamer.py                    # GStreamer H.264 RTP/UDP 双机位低延迟推流管道
+│   ├── teleop.py                      # 终端非阻塞键盘遥控器
+│   └── platform_compat.py             # Linux 桌面图形兼容与警告拦截器
 │
-├── core_math/                         # 空间几何代数与李代数核心库 (SE3/SO3 切空间微扰与李括号)
-│   ├── __init__.py                    # 模块导出定义
-│   ├── so3.py                         # 三维旋转群 SO(3)、四元数与罗德里格斯公式指数/对数映射
-│   └── se3.py                         # 三维特殊欧氏群 SE(3)、空间刚体位姿变换与切空间六维微扰
+├── core_math/                         # 空间李群与李代数几何核心库
+│   ├── so3.py                         # 三维旋转群 SO(3)、四元数与罗德里格斯变换
+│   └── se3.py                         # 三维刚体变换群 SE(3) 与 6 维切空间微扰映射
 │
-├── slam/                              # 3D 激光惯导紧耦合里程计与空间建图
-│   ├── __init__.py                    # 模块导出定义
-│   ├── preprocess.py                  # 极速 NumPy 向量化点云测距截断、自遮挡过滤与体素质心降采样
-│   ├── imu_tracker.py                 # 6 轴 IMU 运动学中点积分、差速底盘非全息动力学约束与 Z 轴退化抑制
-│   └── lio_odometry.py                # 点到面高斯-牛顿 ICP 配准器、cKDTree 空间索引与全局增量式 3D 建图
+├── slam/                              # 3D 激光惯导紧耦合建图 (LIO-SLAM)
+│   ├── preprocess.py                  # 点云测距截断、自遮挡剔除与体素网格下采样
+│   ├── imu_tracker.py                 # 6 轴 IMU 中点积分与动力学运动学约束
+│   └── lio_odometry.py                # 点到面高斯-牛顿 ICP 配准与增量式空间建图
 │
-├── navigation/                        # 2.5D 高程感知、立体越障爬坡与自主路径规划
-│   ├── __init__.py                    # 模块导出定义
-│   ├── costmap.py                     # 3D 点云高程切片、2D 占用代价栅格与欧氏距离安全膨胀层
-│   ├── elevation_map.py               # 2.5D 地形高程、二维空间梯度坡度与局部台阶可通行性代价图
-│   ├── map_storage.py                 # 工业级地图持久化存盘与加载管理器 (.ply/.npz/.png/.yaml)
-│   ├── navigation_manager.py          # 高内聚自主导航协调状态机 (A* + DWA + 逆运动学驱动)
-│   ├── global_planner.py              # 欧氏启发式 A* 全局路径寻路与自适应折线平滑器
-│   └── local_planner.py               # 动态窗口法 (DWA) 轨迹采样、评价与局部避障速度规划器
+├── navigation/                        # 2.5D 高程感知、越障规划与导航控制
+│   ├── elevation_map.py               # 2.5D 地形高程估计、坡度梯度与通行性代价图 (28x28m 全域覆盖)
+│   ├── costmap.py                     # 3D 点云高程切片、2D 占用代价栅格与安全膨胀层
+│   ├── global_planner.py              # A* 全局路径寻路与大半径开阔地脱困机制
+│   ├── local_planner.py               # 动态窗口法 (DWA) 速度规划器与进站降速漏斗
+│   ├── navigation_manager.py          # 自主导航状态机、停滞看门狗与到站绝对驻车锁定
+│   └── map_storage.py                 # 地图持久化存储管理器 (.ply/.npz/.png/.yaml)
 │
-├── msh/                               # MSH (Mobile Station Host) 主控微服务总线与网关
-│   ├── __init__.py                    # 模块导出定义
-│   ├── capabilities.py                # 全车功能能力清单 (Capabilities Manifest) 定义中心
-│   ├── rpc_server.py                  # TCP JSON-RPC 2.0 高并发多线程服务网关 (端口 9001)
-│   ├── service_handler.py             # 业务请求集中调度中心 (底盘、建图、地图管理、导航遥测)
-│   └── client.py                      # MSH 客户端通信 SDK 与 CLI 终端交互工具
+├── msh/                               # MSH (Mobile Station Host) 主控微服务总线
+│   ├── rpc_server.py                  # TCP JSON-RPC 2.0 高并发多线程网关 (端口 9001，异常断开防御)
+│   ├── service_handler.py             # 业务集中调度中心 (点云遥测下发、底盘控制、导航协调)
+│   ├── capabilities.py                # 全车功能能力清单 (Capabilities Manifest)
+│   └── client.py                      # Python CLI 交互与测试客户端
 │
-├── qt_client/                         # 工业数字孪生上位机客户端工程 (C++ / Qt 6 QML，并列核心子系统)
-│   └── mobile_console/                # 基于 Qt 6 构建的 Cyber 赛博工业风格移动机器人控制台
-│       ├── CMakeLists.txt             # Qt 6 C++ / QML 项目 CMake 构建配置文件
-│       ├── main.cpp                   # 上位机客户端主入口
-│       ├── Main.qml                   # 工业控制台 QML 界面主视图
-│       ├── importedcontent/           # Figma to Qt 模块集成扩展目录
-│       └── .gitignore                 # Qt Creator 专用本地构建忽略规则
+├── qt_client/                         # Qt 6 工业级数字孪生控制台 (C++ / QML)
+│   └── mobile_console/
+│       ├── CMakeLists.txt             # CMake 跨平台构建脚本
+│       ├── main.cpp                   # 应用程序主入口
+│       ├── Main.qml                   # 主界面框架与整体布局
+│       ├── Theme.qml                  # 统一设计系统 (赛博工业风格调色板、字阶、间距)
+│       ├── msh_client.h / .cpp        # MSH JSON-RPC 通信中枢与高频遥测状态管理
+│       ├── gst_video_receiver.h / .cpp# GStreamer 低延迟视频接收与 QML 渲染集成
+│       ├── components/                # 工业级通用 QML 组件
+│       │   ├── TopHeader.qml          # 顶部系统状态栏、工作模式切换与通信指示
+│       │   ├── ActionButton.qml       # 工业微动按钮与悬浮光效
+│       │   ├── CardPanel.qml          # 赛博半透明磨砂面板卡片
+│       │   ├── StatusBadge.qml        # 状态徽章标签
+│       │   ├── SliderBar.qml          # 速度限制平滑滑块
+│       │   └── SplitHandleBar.qml     # 自由分屏调节手柄
+│       └── views/                     # 业务专属视图面板
+│           ├── SpatialDemView.qml     # 2x2 旗舰态势大屏、全域迷雾高程热力图与 360° 雷达避障
+│           ├── CameraPanel.qml        # 双机位 GStreamer 实时视讯监控面板
+│           ├── TelemetryPanel.qml     # 实时六维位姿、线/角速度、IMU 与通信遥测仪表
+│           ├── WaypointPanel.qml      # 航点路径管理与多目标巡航控制
+│           ├── MotionPanel.qml        # 手动差速摇杆与底盘线速度调节面板
+│           └── ConsoleLogFooter.qml   # 底部实时诊断与控制台日志输出面板
 │
-├── scripts/                           # 业务启动与功能验证入口脚本
-│   ├── run_msh_server.py              # MSH 主控微服务后台守护进程与 3D 数字孪生启动脚本
-│   ├── run_teleop_simulation.py       # 键盘交互式差速小车遥控与城市建筑群物理仿真主入口
-│   ├── run_streaming_simulation.py    # GStreamer 双机位 (车载前向 + 全局监控) H.264 视讯推流仿真入口
-│   ├── run_autonomous_navigation.py   # 2.5D 高程感知、立体坡道爬坡与自主导航全闭环
-│   ├── view_lidar_scan.py             # 独立激光雷达点云捕获与测距单帧交互可视化验证工具
-│   └── view_slam_mapping.py           # 3D LIO-SLAM 实时建图、位姿估计与全局点云导出交互控制台
+├── scripts/                           # 核心运行与业务启动入口
+│   ├── run_msh_server.py              # MSH 主控微服务后台守护进程与 3D 物理引擎启动脚本
+│   ├── run_autonomous_navigation.py   # 2.5D 高程感知、立体坡道爬坡与自主导航全闭环验证
+│   ├── run_streaming_simulation.py    # GStreamer 双机位视讯推流验证脚本
+│   ├── run_teleop_simulation.py       # 键盘交互式差速小车手动遥控仿真入口
+│   ├── view_slam_mapping.py           # 3D LIO-SLAM 实时建图与交互控制台
+│   └── view_lidar_scan.py             # 独立激光雷达点云捕获与极坐标切片验证工具
 │
-└── tests/                             # 核心算法与传感器自动化测试套件
-    ├── __init__.py                    # 测试包标识
-    ├── test_sensors.py                # 激光雷达光线求交、IMU 高斯噪声与平台兼容性自动化测试集
-    ├── test_math.py                   # 空间几何 SO(3)/SE(3) 李群李代数运算精度与微扰求导测试集
-    ├── test_slam.py                   # 点云体素滤波、IMU 运动学追踪与点到面 ICP 配准收敛性测试集
-    ├── test_navigation.py             # 2D 代价栅格切片膨胀、A* 寻路避障与 DWA 速度规划测试集
-    ├── test_elevation_map.py          # 2.5D 地形高程估计、坡度梯度与台阶通行性测试集
-    ├── test_msh.py                    # MSH 功能能力清单、地图持久化往返与 JSON-RPC 通信测试集
-    └── test_streaming.py              # GStreamer 双机位 H.264 RTP 视讯推流与网络接收测试集
+├── tests/                             # 自动化单元与集成测试套件
+│   ├── test_navigation.py             # A* 寻路、DWA 局部规划与避障测试
+│   ├── test_elevation_map.py          # 2.5D 高程估计、坡度梯度与越障测试
+│   ├── test_sensors.py                # 激光雷达光线求交与 IMU 噪声模型测试
+│   ├── test_math.py                   # SO(3)/SE(3) 李群运算精度测试
+│   ├── test_slam.py                   # ICP 点云配准与体素滤波测试
+│   ├── test_msh.py                    # MSH 微服务能力清单与协议测试
+│   └── test_streaming.py              # GStreamer 推流连通性测试
+│
+└── output/                            # 演示媒体与导出结果目录
+    ├── mobile_robot_console_demo.gif  # 控制台动态运行演示 GIF
+    └── autonomous_navigation_dashboard.png # 2.5D 高程导航 2x2 综合态势大图
 ```
 
 ---
 
-## 2. 快速开始与环境安装 (一键配置)
+## 🚀 快速开始与环境安装
 
-### 步骤一：安装 Python 依赖
-推荐在独立的虚拟环境 (Virtualenv / Conda) 中运行：
+### 步骤一：配置 Python 环境
+系统采用纯 CPU 友好设计，无需安装庞大的 CUDA 工具链：
 
 ```bash
-# 激活 Python 虚拟环境后执行 (纯 CPU 架构友好，无需 CUDA)
+# 建议在独立的虚拟环境中安装核心依赖
+python3 -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 步骤二：安装系统级 GStreamer 视讯多媒体库 (Linux 环境)
-工作站采用 GStreamer RTP H.264 UDP 编码推流车载与全局视讯画面，请确保宿主机已安装核心插件：
-
+### 步骤二：安装 GStreamer 多媒体依赖 (Linux)
 ```bash
 sudo apt update && sudo apt install -y \
     gstreamer1.0-tools \
@@ -115,149 +184,110 @@ sudo apt update && sudo apt install -y \
     gstreamer1.0-plugins-good \
     gstreamer1.0-plugins-bad \
     gstreamer1.0-plugins-ugly \
-    gstreamer1.0-libav
+    gstreamer1.0-libav \
+    libgstreamer1.0-dev \
+    libgstreamer-plugins-base1.0-dev
 ```
 
-### 步骤三：运行核心算法与传感器自动化测试套件
-验证空间数学库、激光雷达 Raycasting、IMU 高斯噪声与 3D LIO-SLAM 点到面配准收敛性：
+### 步骤三：安装 Qt 6 依赖并编译上位机控制台
+```bash
+# 安装 Qt 6 核心库与 QML 开发依赖
+sudo apt install -y qt6-base-dev qt6-declarative-dev libqt6quick6 cmake g++
 
+# 编译 Qt 6 工业控制台
+cmake -B qt_client/mobile_console/build -S qt_client/mobile_console
+cmake --build qt_client/mobile_console/build -j$(nproc)
+```
+
+### 步骤四：运行自动化测试集
 ```bash
 python -m unittest discover tests
 ```
 
 ---
 
-## 3. 工作站运行指南
+## 🎮 系统运行指南
 
-### 1. 启动核心物理仿真与键盘遥控 (Simulation & Teleop)
-拉起 MuJoCo 3D 物理引擎，加载立体建筑群测试世界，并通过终端键盘进行实时差速遥控：
+### 1. 推荐方式：MSH 微服务 + Qt 6 工业控制台全景协同
+这是最标准、最直观的端到端运行体验：
 
+```bash
+# 终端 1：启动 MSH 主控微服务 (启动 MuJoCo 仿真、点云解算与双机位推流)
+python scripts/run_msh_server.py --headless
+
+# 终端 2：启动 Qt 6 工业控制台客户端
+./qt_client/mobile_console/build/appmobile_console
+```
+* **上位机操作体验**：
+  - 启动后控制台自动通过 TCP: 9001 连接微服务，双路 GStreamer 视讯流无缝接入；
+  - 切换至 **2x2 旗舰综合态势大屏**，可实时观测 2.5D 高程热力图、3D 空间位姿、360° 避障剖面与动力学曲线；
+  - 在地图任意位置点击下发导航目标，或在右侧航点面板中选择指定航点，小车即刻自主规划、平滑避障、进站降速并精准驻车。
+
+---
+
+### 2. 独立功能验证脚本
+
+#### (1) 2.5D 高程感知、立体越障爬坡与态势图导出
+启动自主导航闭环，小车穿行大道、绕过中央环岛、对准缓坡并稳健登顶北侧高台（标高 $0.12\text{m}$），任务完成后自动导出高清 2x2 态势图：
+
+```bash
+# 交互式 3D 物理视窗模式
+python scripts/run_autonomous_navigation.py --goal 0.0 6.0
+
+# 无头自动化模式
+python scripts/run_autonomous_navigation.py --goal 0.0 6.0 --headless
+```
+
+<div align="center">
+
+![2.5D 高程感知与立体爬坡综合态势大图](output/autonomous_navigation_dashboard.png)
+
+*自主越障爬坡综合态势分析大图 (`output/autonomous_navigation_dashboard.png`)*
+
+</div>
+
+#### (2) 3D LIO-SLAM 实时建图与轨迹估计
+实时解算小车 6 自由度空间位姿，并在立体街区中构建全局稠密 3D 点云：
+```bash
+python scripts/view_slam_mapping.py
+```
+- 控制方式：`W/S/A/D` 操控底盘，`P` 导出点云快照，`Q/ESC` 退出并保存全局地图。
+
+#### (3) 键盘交互式纯底盘物理遥控
 ```bash
 python scripts/run_teleop_simulation.py
 ```
-- **控制按键**：`W/S` 加减速前进后退、`A/D` 差速原地转向、`Space` 紧急制动刹车、`Q/ESC` 安全退出。
 
-### 2. 启动 GStreamer 双机位视讯推流仿真 (Streaming Simulation)
-拉起车载感知相机 (UDP: 5002) 与全局监控相机 (UDP: 5004) 双通道 H.264 RTP 实时广播，并在后台步进物理与传感器仿真：
-
-```bash
-python scripts/run_streaming_simulation.py
-```
-
-可在另一个终端中使用 GStreamer 原生黄金低延迟管道实时拉流预览（遵循 gstreamer-streaming-expert 规范，杜绝绿屏与卡顿）：
-```bash
-# 1. 预览车载前向感知画面 (front_cam, 5002 端口)
-gst-launch-1.0 udpsrc port=5002 buffer-size=2097152 caps="application/x-rtp,media=video,clock-rate=90000,encoding-name=H264,payload=96" ! rtpjitterbuffer latency=10 drop-on-latency=true ! rtph264depay ! h264parse ! avdec_h264 max-threads=2 ! videoconvert ! autovideosink sync=false
-
-# 2. 预览全局高空监控画面 (overview_cam, 5004 端口)
-gst-launch-1.0 udpsrc port=5004 buffer-size=2097152 caps="application/x-rtp,media=video,clock-rate=90000,encoding-name=H264,payload=96" ! rtpjitterbuffer latency=10 drop-on-latency=true ! rtph264depay ! h264parse ! avdec_h264 max-threads=2 ! videoconvert ! autovideosink sync=false
-```
-
-### 3. 运行激光雷达扫描与点云验证工具 (LiDAR Scan Inspector)
-在终端独立执行激光雷达单帧光线求交测试，输出 16 线点云统计信息与终端 ASCII 极坐标雷达切片：
-
+#### (4) 独立激光雷达点云与光线求交检查
 ```bash
 python scripts/view_lidar_scan.py
 ```
 
-### 4. 启动 3D LIO-SLAM 实时建图与轨迹估计 (SLAM Mapping & Odometry)
-启动带有 3D 物理视口与激光惯导实时配准的综合建图控制台，遥控小车在立体街区中漫游，实时解算厘米级 6-DOF 位姿并增量构建全局 3D 点云地图：
+---
+
+## 📡 MSH 微服务接口与 CLI 交互规范
+
+MSH 服务端基于标准 **JSON-RPC 2.0 (TCP 端口 9001)**，支持通过配套 CLI 客户端快速交互与调试：
 
 ```bash
-python scripts/view_slam_mapping.py
-```
-- **快捷键**：`W/S/A/D` 操控底盘运动，`P` 键实时导出当前点云快照，`Q/ESC` 退出并自动保存全局地图文件 (`tests/data/urban_world_slam_map.ply`)；
-- **无头测试**：支持 `python scripts/view_slam_mapping.py --auto --headless --steps 100` 进行无图形纯后台基准性能回归测试。
-
-### 5. 启动数字孪生上位机控制台 (Qt 6 Client)
-上位机工程基于 Qt 6 (C++ / QML) 开发，可在 Qt Creator 中直接打开 `qt_client/mobile_console/CMakeLists.txt` 构建运行，亦可在终端通过标准通用 CMake 命令一键编译：
-
-```bash
-# 跨平台标准 CMake 配置与构建
-cmake -B qt_client/mobile_console/build -S qt_client/mobile_console
-cmake --build qt_client/mobile_console/build
-
-# 启动构建完成的上位机控制台
-./qt_client/mobile_console/build/appmobile_console
-```
-### 6. 启动 2.5D 高程感知、立体坡道爬坡与自主导航全闭环 (Autonomous Navigation with Elevation Map)
-基于 2.5D 高程感知与三维空间坡度梯度估计，实现立体致命障碍阻断、零台阶缓坡平滑放行与自主爬坡登顶。程序默认自动拉起 MuJoCo 原生 3D 物理渲染窗口，镜头实时平滑跟随小车巡航与爬坡，并在小车成功登顶高台驻车后自动导出高清 2x2 旗舰级态势大图：
-
-```bash
-# 默认启动交互式 3D 视口巡航与爬坡 (目标航点为北侧高台中心 (0.0, 6.0))
-python scripts/run_autonomous_navigation.py --goal 0.0 6.0
-
-# 支持无头离屏模式 (仅供自动化 CI/CD 单元测试时使用)
-python scripts/run_autonomous_navigation.py --goal 0.0 6.0 --headless
-```
-- **可视化效果**：屏幕弹出 MuJoCo 原生 3D 渲染窗口，小车平稳起步、穿行景观大道绕过中央环岛、对准坡道入口、稳健爬上 3.4 度缓坡，顺利登顶标高 0.12m 的高台并平稳刹车驻车；
-- **全景态势大图输出**：任务完成后自动在 `output/autonomous_navigation_dashboard.png` 生成综合态势大图。
-
-#### 2.5D 高程感知与立体爬坡综合态势图
-
-![2.5D 高程感知与立体爬坡综合态势大图](output/autonomous_navigation_dashboard.png)
-
-态势大图 4 大核心视窗技术解析：
-1. **左上 (2.5D 地形高程感知与自主爬坡寻路)**：融合地形高程热力图与 A* / DWA 路径规划。标绘小车从南端出发点 (0.0, -6.0) 沿西侧景观大道安全绕行中央环岛、正对零台阶坡道入口 (0.0, 3.0)、沿斜坡直行爬升并登顶北侧高台 (0.0, 6.0) 的完整规划与实测轨迹，显示 `[成功登顶高台并驻车]` 状态；
-2. **右上 (3D 立体地形高程与自主爬坡轨迹)**：以三维曲面着色呈现坡度梯度，青色三维空间轨迹直观展现小车从地表 Z=0.00m 沿坡道稳步爬升至高台顶面 Z=0.12m 的立体运动流形；
-3. **左下 (车载双机位协同视讯)**：左侧为车载前视第一人称主驱视角（正对高台防护边沿），右侧为高空俯瞰全局监控视角（直观记录小车端正停驻在黄色警示边沿的高台中央）；
-4. **右下 (底盘动力学指令、车身爬坡俯仰角与距离收敛曲线)**：粉色目标残差从 12 米平滑单调收敛至 0 米；车身俯仰角 (Pitch) 在平地稳定于 -3.8 度，进入缓坡时平稳过渡至 -7.3 度，登顶后瞬间恢复水平，验证了零台阶平滑过渡与稳健越障能力。
-
-### 7. 启动 MSH 主控微服务总线与全车能力自省 (MSH Microservice Bus & Capabilities)
-MSH (Mobile Station Host) 作为移动机器人的唯一服务网关与中枢大脑，基于 TCP JSON-RPC 2.0 (默认端口 9001) 统管全车底盘遥控、SLAM 建图、地图持久化存储、自主导航与高频遥测。
-
-```bash
-# 启动 MSH 后台服务 (拉起 3D 原生视窗，初始化高程底图并监听 9001 端口)
-python scripts/run_msh_server.py
-
-# 在另一个终端使用 MSH 客户端一键查询机器人全套功能能力清单 (Capabilities Manifest)
+# 1. 查询全车功能能力清单 (Capabilities Manifest)
 python -m msh.client --capabilities
 
-# 在终端查询小车瞬时状态
+# 2. 查询底盘瞬时空间位姿与高频动力学遥测
 python -m msh.client --status
 
-# 在终端下发遥控速度指令 (线速度 0.3m/s, 角速度 0.1rad/s)
-python -m msh.client --drive 0.3 0.1
+# 3. 远程下发速度指令 (线速度 0.35m/s, 角速度 0.1rad/s)
+python -m msh.client --drive 0.35 0.1
 
-# 在终端远程下发自主导航目标点 (前往高台 0.0, 6.0)
-python -m msh.client --nav 0.0 6.0
+# 4. 远程下发自主导航航点 (坐标 X=2.0, Y=4.0)
+python -m msh.client --nav 2.0 4.0
 
-# 在终端紧急制动急停
+# 5. 底盘紧急制动抱闸
 python -m msh.client --stop
 ```
 
 ---
 
-## 4. 核心工作流与技术实现
+## 📄 开源许可证
 
-移动机器人的自主建图与导航全任务由高可靠性有限状态机 (FSM) 驱动，包含以下 5 个关键阶段：
-
-1. **激光感知与光线求交 (Raycast Acquisition)**:
-   - 车载 3D 激光雷达 (`lidar_site`) 基于 MuJoCo 底层极速光线投射，采用单线程密集内存求交结合局部射线查找表 (LUT) 优化，单帧 (16线 × 120方位角，共 1920 束光线) 仅需约 30ms，稳定输出建筑物、地面与障碍物的密集交点云；
-2. **惯导测量与运动先验 (IMU Mechanization & Pre-integration)**:
-   - 6 轴高频 IMU 模拟真实世界传感器特性，注入高斯白噪声与离散随机游走零偏，在激光雷达两帧扫描间隙提供高精度的角速度与加速度积分先验位姿，消除动态运动畸变；
-3. **点云配准与增量空间建图 (LIO Mapping & ikd-Tree)**:
-   - 采用多线程点到面 ICP 与增量式 kd 树 (ikd-Tree) 动态数据结构，在纯 CPU 算力下以 10 - 15ms 快速更新局部地图并拼接全局 3D 稠密点云；
-4. **2D 代价栅格切片生成 (Costmap Projection)**:
-   - 提取 3D 点云在底盘离地净空高度范围内的障碍点，二维正交投影并膨胀生成包含不可通行区与安全缓冲区的 2D 占用栅格代价地图；
-5. **全局规划与局部自主动态避障 (Plan & Avoid)**:
-   - 响应导航指令，基于 A* 算法在代价地图上搜索全局最短拓扑路径；局部采用动态窗口法 (DWA) 结合当前车速与周围动态障碍物实时解算最优安全线速度与角速度 $(v, \omega)$，实现厘米级精准停靠。
-
----
-
-## 5. 通信总线与视讯流规范
-
-系统采用数据流与控制流物理隔离的解耦总线设计，兼顾高吞吐多媒体与高实时控制：
-
-1. **控制与遥测总线 (TCP JSON-RPC 2.0，默认端口: 9001)**:
-   - 采用标准 JSON-RPC 2.0 报文协议，支持底盘速度控制 (`set_velocity`)、紧急刹车 (`emergency_stop`)、高频空间遥测轮询 (`get_telemetry`) 以及目标航点导航下发 (`navigate_to`)；
-2. **车载前向低延迟视讯流 (GStreamer RTP/UDP，默认端口: 5002)**:
-   - 车载前向相机捕获的图像帧直接压入 GStreamer 管道，经由 H.264 软件/硬件编码封包为 RTP 数据报广播，提供极低延迟的车载第一视角；
-3. **全局态势监控视讯流 (GStreamer RTP/UDP，默认端口: 5004)**:
-   - 第三人称跟随/鸟瞰监控相机推流，便于上位机操控者宏观掌握机器人在立体街区中的全景运行态势。
-
----
-
-## 6. 开源许可证
-
-本项目遵循 Apache 2.0 开源许可证。
+本项目遵循 [Apache License 2.0](LICENSE) 开源许可证。
