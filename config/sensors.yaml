@@ -1,0 +1,26 @@
+# mobile_robot_station 传感器物理与仿真参数配置
+
+lidar:
+  model_name: "LDS_3D_16CH"
+  site_name: "lidar_site"
+  vertical_channels: 16
+  vertical_fov_deg: [-15.0, 15.0]
+  horizontal_fov_deg: 360.0
+  horizontal_resolution_deg: 1.5   # 360 / 1.5 = 240 方位角, 单帧 3840 线束
+  min_range: 0.15                  # 最小测距 (米)
+  max_range: 25.0                  # 最大测距 (米)
+  noise_std: 0.01                  # 距离高斯白噪声标准差 (米)
+  frame_rate_hz: 10.0              # 标称扫描频率
+
+imu:
+  model_name: "6DOF_MEMS_IMU"
+  site_name: "imu_site"
+  rate_hz: 200.0
+  accel:
+    noise_std: 0.02                # 加速度计白噪声标准差 (m/s^2)
+    bias_walk_std: 0.0001          # 加速度偏置随机游走强度 (m/s^2/sqrt(s))
+    init_bias: [0.0, 0.0, 0.0]
+  gyro:
+    noise_std: 0.005               # 陀螺仪白噪声标准差 (rad/s)
+    bias_walk_std: 0.00005         # 陀螺仪偏置随机游走强度 (rad/s/sqrt(s))
+    init_bias: [0.0, 0.0, 0.0]

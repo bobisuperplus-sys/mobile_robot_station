@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 MuJoCo 仿真物理世界封装模块 (World Simulation Manager)
-负责场景装载、物理步进积分、底盘位姿计算与 IMU 传感器遥测数据提取。
+负责场景装载、物理步进积分、底盘位姿计算、3D 激光雷达点云发生与 IMU 传感器遥测数据提取。
 """
 
 import os
@@ -14,13 +14,16 @@ try:
 except ImportError as err:
     raise ImportError("未检测到 mujoco 库，请激活指定 Python 虚拟环境。") from err
 
+from src.simulation.lidar_sim import RaycastLidar3D
+from src.simulation.imu_sim import RealisticIMUSimulator
+
 
 class UrbanWorldSimulation:
     """
-    3D 建筑群仿真环境与底盘传感器管理器
+    3D 建筑群仿真环境与底盘多传感器管理器
     """
 
-    def __init__(self, scene_xml_path: str):
+    def __init__(self, scene_xml_path: str, lidar: RaycastLidar3D | None = None, imu_sim: RealisticIMUSimulator | None = None):
         if not os.path.isabs(scene_xml_path):
             scene_xml_path = os.path.abspath(scene_xml_path)
 
@@ -37,6 +40,13 @@ class UrbanWorldSimulation:
 
         self.imu_accel_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SENSOR, "imu_accel")
         self.imu_gyro_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SENSOR, "imu_gyro")
+
+        # 挂载传感器引擎 (若未提供则使用默认参数自动初始化)
+        self.lidar = lidar if lidar is not None else RaycastLidar3D()
+        self.imu_sim = imu_sim if imu_sim is not None else RealisticIMUSimulator()
+
+        # 立即执行一次前向正运动学解算，初始化所有几何体与安装站点的空间坐标
+        mujoco.mj_forward(self.model, self.data)
 
     @property
     def timestep(self) -> float:
@@ -58,18 +68,40 @@ class UrbanWorldSimulation:
 
     def get_robot_yaw(self) -> float:
         """从底盘位姿四元数计算航向角 Yaw (单位: 弧度)"""
-        # base_link 的全局四元数在 xquat
         quat = self.data.xquat[self.robot_body_id]
         w, x, y, z = quat[0], quat[1], quat[2], quat[3]
         siny_cosp = 2.0 * (w * z + x * y)
         cosy_cosp = 1.0 - 2.0 * (y * y + z * z)
         return math.atan2(siny_cosp, cosy_cosp)
 
-    def get_imu_telemetry(self) -> dict[str, np.ndarray]:
-        """获取当前 6 轴高频 IMU 真实加速度 (m/s^2) 与角速度 (rad/s)"""
+    def get_raw_imu_telemetry(self) -> dict[str, np.ndarray]:
+        """获取物理引擎原生未滤波的理想 6 轴 IMU 加速度 (m/s^2) 与角速度 (rad/s)"""
         accel = np.copy(self.data.sensor("imu_accel").data)
         gyro = np.copy(self.data.sensor("imu_gyro").data)
         return {
             "acceleration": accel,
             "angular_velocity": gyro,
         }
+
+    def get_realistic_imu_telemetry(self) -> dict[str, np.ndarray]:
+        """获取注入白噪声与随机游走偏置的高保真 IMU 遥测数据"""
+        raw = self.get_raw_imu_telemetry()
+        return self.imu_sim.update(
+            accel_true=raw["acceleration"],
+            gyro_true=raw["angular_velocity"],
+            dt=self.timestep,
+        )
+
+    def get_lidar_pointcloud(self, return_world_frame: bool = False) -> dict[str, np.ndarray]:
+        """
+        触发单次 3D 激光雷达光线投射扫描
+        :param return_world_frame: 若为 True 返回全局世界坐标点云，若为 False 返回小车局部系点云
+        :return: 包含 points (K, 3), intensities (K,), rings (K,) 等数据的字典
+        """
+        return self.lidar.scan(
+            model=self.model,
+            data=self.data,
+            lidar_site_name="lidar_site",
+            robot_body_name="base_link",
+            return_world_frame=return_world_frame,
+        )
