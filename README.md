@@ -144,10 +144,13 @@ python scripts/run_teleop_simulation.py
 python scripts/run_streaming_simulation.py
 ```
 
-可在另一个终端中使用 GStreamer 原生管道实时预览拉流画面：
+可在另一个终端中使用 GStreamer 原生黄金低延迟管道实时拉流预览（遵循 gstreamer-streaming-expert 规范，杜绝绿屏与卡顿）：
 ```bash
-# 预览车载前向感知画面 (5002 端口)
-gst-launch-1.0 -v udpsrc port=5002 caps="application/x-rtp, media=(string)video, clock-rate=(int)90000, encoding-name=(string)H264, payload=(int)96" ! rtph264depay ! avdec_h264 ! videoconvert ! autovideosink sync=false
+# 1. 预览车载前向感知画面 (front_cam, 5002 端口)
+gst-launch-1.0 udpsrc port=5002 buffer-size=2097152 caps="application/x-rtp,media=video,clock-rate=90000,encoding-name=H264,payload=96" ! rtpjitterbuffer latency=10 drop-on-latency=true ! rtph264depay ! h264parse ! avdec_h264 max-threads=2 ! videoconvert ! autovideosink sync=false
+
+# 2. 预览全局高空监控画面 (overview_cam, 5004 端口)
+gst-launch-1.0 udpsrc port=5004 buffer-size=2097152 caps="application/x-rtp,media=video,clock-rate=90000,encoding-name=H264,payload=96" ! rtpjitterbuffer latency=10 drop-on-latency=true ! rtph264depay ! h264parse ! avdec_h264 max-threads=2 ! videoconvert ! autovideosink sync=false
 ```
 
 ### 3. 运行激光雷达扫描与点云验证工具 (LiDAR Scan Inspector)

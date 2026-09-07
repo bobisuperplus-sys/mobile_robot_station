@@ -121,6 +121,94 @@ class TestGStreamerStreaming(unittest.TestCase):
             sock_overview.close()
             server.close()
 
+    def test_stream_color_fidelity_no_green_screen(self):
+        """测试推流端在 rawvideoparse 组帧下的色彩保真度，确保彻底杜绝全绿屏空帧"""
+        import subprocess
+        import glob
+        import cv2
+
+        test_port = 15008
+        width = 320
+        height = 240
+        fps = 30
+
+        # 清理临时文件
+        for f in glob.glob("/tmp/test_rx_green_*.jpg"):
+            try:
+                os.remove(f)
+            except OSError:
+                pass
+
+        streamer = GStreamerStreamer(
+            width=width,
+            height=height,
+            fps=fps,
+            host="127.0.0.1",
+            port=test_port,
+            bitrate_kbps=1000,
+        )
+
+        # 构造黄金接收端截帧管道
+        rx_cmd = [
+            "gst-launch-1.0", "-q",
+            "udpsrc", f"port={test_port}", "buffer-size=2097152",
+            'caps=application/x-rtp,media=video,clock-rate=90000,encoding-name=H264,payload=96', "!",
+            "rtpjitterbuffer", "latency=10", "drop-on-latency=true", "!",
+            "rtph264depay", "!",
+            "h264parse", "!",
+            "avdec_h264", "max-threads=2", "!",
+            "videoconvert", "!",
+            "jpegenc", "!",
+            "multifilesink", "location=/tmp/test_rx_green_%03d.jpg", "max-files=10"
+        ]
+        rx_proc = subprocess.Popen(rx_cmd)
+
+        # 构造左纯红 (RGB: 255, 0, 0)、右纯蓝 (RGB: 0, 0, 255) 测试帧
+        test_frame = np.zeros((height, width, 3), dtype=np.uint8)
+        test_frame[:, :width//2] = [255, 0, 0]
+        test_frame[:, width//2:] = [0, 0, 255]
+
+        try:
+            for _ in range(45):
+                streamer.push_frame(test_frame)
+                time.sleep(1.0 / fps)
+        finally:
+            streamer.close()
+            time.sleep(0.5)
+            rx_proc.terminate()
+            try:
+                rx_proc.wait(timeout=1.0)
+            except:
+                rx_proc.kill()
+
+        frames = sorted(glob.glob("/tmp/test_rx_green_*.jpg"))
+        self.assertGreater(len(frames), 0, "接收端应成功捕获到视频帧图片")
+
+        # 检查最新接收到的稳定帧
+        latest_frame = cv2.imread(frames[-1])
+        self.assertIsNotNone(latest_frame, "解码的图像应能被正确读取")
+
+        # 检查像素均值不是绿屏 (B=0, G=135, R=0)
+        mean_b = float(latest_frame[:, :, 0].mean())
+        mean_g = float(latest_frame[:, :, 1].mean())
+        mean_r = float(latest_frame[:, :, 2].mean())
+
+        is_green_screen = (mean_b < 5.0 and mean_r < 5.0 and 120.0 < mean_g < 150.0 and latest_frame.std() < 5.0)
+        self.assertFalse(is_green_screen, "接收帧绝不能是未初始化的 YUV 全零绿屏 (B=0, G=135, R=0)")
+
+        # 验证红蓝色彩分割特征
+        left_r = float(latest_frame[:, :width//4, 2].mean()) # BGR 的 R 通道
+        right_b = float(latest_frame[:, -width//4:, 0].mean()) # BGR 的 B 通道
+        self.assertGreater(left_r, 180.0, "左半区域应当保真呈现高饱和红色")
+        self.assertGreater(right_b, 180.0, "右半区域应当保真呈现高饱和蓝色")
+
+        # 清理临时文件
+        for f in frames:
+            try:
+                os.remove(f)
+            except OSError:
+                pass
+
 
 if __name__ == "__main__":
     unittest.main()
