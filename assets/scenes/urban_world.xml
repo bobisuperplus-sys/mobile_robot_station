@@ -99,8 +99,22 @@
       <!-- 南侧道路上的几何箱子 -->
       <geom type="box" size="0.4 0.4 0.35" pos="1.8 -4.5 0.35" material="obstacle_box"/>
       <geom type="box" size="0.3 0.5 0.25" pos="-1.5 -8.5 0.25" material="obstacle_box"/>
-      <!-- 北侧道路上的圆柱桶 -->
-      <geom type="cylinder" size="0.25 0.4" pos="1.2 5.5 0.4" material="curb_yellow"/>
+      <!-- 北侧道路立柱附近的障碍圆柱桶 (移至立柱走廊内侧以保证高台通道宽敞) -->
+      <geom type="cylinder" size="0.25 0.4" pos="2.0 5.5 0.4" material="curb_yellow"/>
+    </body>
+
+    <!-- 10. 北侧立体观景台与上坡坡道 (测试 2.5D 高程感知、越障爬坡与高台停驻) -->
+    <body name="elevated_ramp_platform" pos="0 0 0">
+      <!-- 零台阶平顺入地缓坡 (宽 2.0m，坡度仅 3.4 度/0.06rad，南端深沉入地消灭突唇，北侧无缝平顺衔接高台 Z=0.12m) -->
+      <geom name="access_ramp" type="box" size="1.0 1.30 0.04" pos="0 3.7 0.002" euler="0.060 0 0" material="asphalt_mat" friction="1.5 0.005 0.0001"/>
+      <!-- 高台基座 (标高 Z=0.12m，尺寸 2.2m x 2.0m，中心 Y=6.0，Z_pos=0.06) -->
+      <geom name="platform_deck" type="box" size="1.1 1.0 0.06" pos="0 6.0 0.06" material="building_grey" friction="1.5 0.005 0.0001"/>
+      <!-- 高台西侧防护警示边沿 -->
+      <geom type="box" size="0.05 1.0 0.03" pos="-1.1 6.0 0.15" material="curb_yellow"/>
+      <!-- 高台东侧防护警示边沿 -->
+      <geom type="box" size="0.05 1.0 0.03" pos="1.1 6.0 0.15" material="curb_yellow"/>
+      <!-- 高台北侧防护警示边沿 -->
+      <geom type="box" size="1.1 0.05 0.03" pos="0 7.05 0.15" material="curb_yellow"/>
     </body>
   </worldbody>
 

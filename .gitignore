@@ -33,6 +33,8 @@ CMakeLists.txt.user*
 *.pcap
 MUJOCO_LOG.TXT
 tests/data/
+output/*
+!output/autonomous_navigation_dashboard.png
 
 # 虚拟环境
 venv/

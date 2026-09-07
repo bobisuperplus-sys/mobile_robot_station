@@ -18,15 +18,21 @@ class TurtleBot3BurgerDriver:
       - 最大额定角速度: 2.84 rad/s
     """
 
-    def __init__(self, wheel_radius: float = 0.033, wheel_base: float = 0.160):
+    def __init__(
+        self,
+        wheel_radius: float = 0.033,
+        wheel_base: float = 0.160,
+        max_v: float = 0.60,
+        max_w: float = 3.5,
+    ):
         self.r = float(wheel_radius)
         self.L = float(wheel_base)
 
         self.v = 0.0
         self.w = 0.0
 
-        self.max_v = 0.22
-        self.max_w = 2.84
+        self.max_v = float(max_v)
+        self.max_w = float(max_w)
 
         self.v_step = 0.02
         self.w_step = 0.15

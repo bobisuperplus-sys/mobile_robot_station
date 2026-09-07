@@ -44,14 +44,18 @@ mobile_robot_station/
 │   ├── so3.py                         # 三维旋转群 SO(3)、四元数与罗德里格斯公式指数/对数映射
 │   └── se3.py                         # 三维特殊欧氏群 SE(3)、空间刚体位姿变换与切空间六维微扰
 │
-├── slam/                              # 3D 激光惯导紧耦合里程计 (点云配准、抗退化约束、全局增量建图)
+├── slam/                              # 3D 激光惯导紧耦合里程计与空间建图
 │   ├── __init__.py                    # 模块导出定义
 │   ├── preprocess.py                  # 极速 NumPy 向量化点云测距截断、自遮挡过滤与体素质心降采样
 │   ├── imu_tracker.py                 # 6 轴 IMU 运动学中点积分、差速底盘非全息动力学约束与 Z 轴退化抑制
 │   └── lio_odometry.py                # 点到面高斯-牛顿 ICP 配准器、cKDTree 空间索引与全局增量式 3D 建图
 │
-├── navigation/                        # 自主路径规划与局部避障 (2D Costmap 投影、A* 规划、DWA 避障)
-│   └── __init__.py                    # 模块导出定义
+├── navigation/                        # 2.5D 高程感知、立体越障爬坡与自主路径规划
+│   ├── __init__.py                    # 模块导出定义
+│   ├── costmap.py                     # 3D 点云高程切片、2D 占用代价栅格与欧氏距离安全膨胀层
+│   ├── elevation_map.py               # 2.5D 地形高程、二维空间梯度坡度与局部台阶可通行性代价图
+│   ├── global_planner.py              # 欧氏启发式 A* 全局路径寻路与自适应折线平滑器
+│   └── local_planner.py               # 动态窗口法 (DWA) 轨迹采样、评价与局部避障速度规划器
 │
 ├── msh/                               # MSH (Mobile Station Host) 后台主控微服务与通信总线
 │   └── __init__.py                    # 模块导出定义
@@ -67,6 +71,7 @@ mobile_robot_station/
 ├── scripts/                           # 业务启动与功能验证入口脚本
 │   ├── run_teleop_simulation.py       # 键盘交互式差速小车遥控与城市建筑群物理仿真主入口
 │   ├── run_streaming_simulation.py    # GStreamer 双机位 (车载前向 + 全局监控) H.264 视讯推流仿真入口
+│   ├── run_autonomous_navigation.py   # 2.5D 高程感知、立体坡道爬坡与自主导航全闭环
 │   ├── view_lidar_scan.py             # 独立激光雷达点云捕获与测距单帧交互可视化验证工具
 │   └── view_slam_mapping.py           # 3D LIO-SLAM 实时建图、位姿估计与全局点云导出交互控制台
 │
@@ -74,7 +79,9 @@ mobile_robot_station/
     ├── __init__.py                    # 测试包标识
     ├── test_sensors.py                # 激光雷达光线求交、IMU 高斯噪声与平台兼容性自动化测试集
     ├── test_math.py                   # 空间几何 SO(3)/SE(3) 李群李代数运算精度与微扰求导测试集
-    └── test_slam.py                   # 点云体素滤波、IMU 运动学追踪与点到面 ICP 配准收敛性测试集
+    ├── test_slam.py                   # 点云体素滤波、IMU 运动学追踪与点到面 ICP 配准收敛性测试集
+    ├── test_navigation.py             # 2D 代价栅格切片膨胀、A* 寻路避障与 DWA 速度规划测试集
+    └── test_elevation_map.py          # 2.5D 地形高程估计、坡度梯度与台阶通行性测试集
 ```
 
 ---
@@ -161,7 +168,28 @@ cmake --build qt_client/mobile_console/build
 # 启动构建完成的上位机控制台
 ./qt_client/mobile_console/build/appmobile_console
 ```
-上位机启动后将自动建立双向遥测信道，秒级挂载低延迟车载推流画面，并以 3D 方式渲染点云与历史运动轨迹。
+### 6. 启动 2.5D 高程感知、立体坡道爬坡与自主导航全闭环 (Autonomous Navigation with Elevation Map)
+基于 2.5D 高程感知与三维空间坡度梯度估计，实现立体致命障碍阻断、零台阶缓坡平滑放行与自主爬坡登顶。程序默认自动拉起 MuJoCo 原生 3D 物理渲染窗口，镜头实时平滑跟随小车巡航与爬坡，并在小车成功登顶高台驻车后自动导出高清 2x2 旗舰级态势大图：
+
+```bash
+# 默认启动交互式 3D 视口巡航与爬坡 (目标航点为北侧高台中心 (0.0, 6.0))
+python scripts/run_autonomous_navigation.py --goal 0.0 6.0
+
+# 支持无头离屏模式 (仅供自动化 CI/CD 单元测试时使用)
+python scripts/run_autonomous_navigation.py --goal 0.0 6.0 --headless
+```
+- **可视化效果**：屏幕弹出 MuJoCo 原生 3D 渲染窗口，小车平稳起步、穿行景观大道绕过中央环岛、对准坡道入口、稳健爬上 3.4 度缓坡，顺利登顶标高 0.12m 的高台并平稳刹车驻车；
+- **全景态势大图输出**：任务完成后自动在 `output/autonomous_navigation_dashboard.png` 生成综合态势大图。
+
+#### 2.5D 高程感知与立体爬坡综合态势图
+
+![2.5D 高程感知与立体爬坡综合态势大图](output/autonomous_navigation_dashboard.png)
+
+态势大图 4 大核心视窗技术解析：
+1. **左上 (2.5D 地形高程感知与自主爬坡寻路)**：融合地形高程热力图与 A* / DWA 路径规划。标绘小车从南端出发点 (0.0, -6.0) 沿西侧景观大道安全绕行中央环岛、正对零台阶坡道入口 (0.0, 3.0)、沿斜坡直行爬升并登顶北侧高台 (0.0, 6.0) 的完整规划与实测轨迹，显示 `[成功登顶高台并驻车]` 状态；
+2. **右上 (3D 立体地形高程与自主爬坡轨迹)**：以三维曲面着色呈现坡度梯度，青色三维空间轨迹直观展现小车从地表 Z=0.00m 沿坡道稳步爬升至高台顶面 Z=0.12m 的立体运动流形；
+3. **左下 (车载双机位协同视讯)**：左侧为车载前视第一人称主驱视角（正对高台防护边沿），右侧为高空俯瞰全局监控视角（直观记录小车端正停驻在黄色警示边沿的高台中央）；
+4. **右下 (底盘动力学指令、车身爬坡俯仰角与距离收敛曲线)**：粉色目标残差从 12 米平滑单调收敛至 0 米；车身俯仰角 (Pitch) 在平地稳定于 -3.8 度，进入缓坡时平稳过渡至 -7.3 度，登顶后瞬间恢复水平，验证了零台阶平滑过渡与稳健越障能力。
 
 ---
 
