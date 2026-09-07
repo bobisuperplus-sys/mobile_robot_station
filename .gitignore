@@ -4,17 +4,23 @@ __pycache__/
 *$py.class
 .cache/
 
-# 构建产物
+# 构建产物与 Qt 临时目录
 build/
+**/build/
 bin/
 lib/
 *.o
 *.a
 *.so
+**/Desktop_Qt_*/
+.rcc/
+CMakeLists.txt.user*
 
 # IDE 与工程临时文件
 .vscode/
 .idea/
+.qtcreator/
+**/.qtcreator/
 *.user
 *.autosave
 *.swp
@@ -25,9 +31,10 @@ lib/
 *.log
 *.bag
 *.pcap
+MUJOCO_LOG.TXT
+tests/data/
 
 # 虚拟环境
 venv/
 .venv/
 env/
-MUJOCO_LOG.TXT
