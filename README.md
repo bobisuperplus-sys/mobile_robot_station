@@ -89,11 +89,6 @@ mobile_robot_station/
 pip install -r requirements.txt
 ```
 
-若在本机开发，可直接激活指定专属虚拟环境：
-```bash
-source /home/yellowtown/Code/PythonProject/venv/bin/activate
-```
-
 ### 步骤二：安装系统级 GStreamer 视讯多媒体库 (Linux 环境)
 工作站采用 GStreamer RTP H.264 UDP 编码推流车载与全局视讯画面，请确保宿主机已安装核心插件：
 

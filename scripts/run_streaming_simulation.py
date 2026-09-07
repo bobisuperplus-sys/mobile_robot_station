@@ -32,7 +32,7 @@ try:
     )
 except ImportError as err:
     print(f"[Error] 模块加载失败: {err}")
-    print("[Tip] 请激活虚拟环境: source /home/yellowtown/Code/PythonProject/venv/bin/activate")
+    print("[Tip] 请激活虚拟环境: source venv/bin/activate")
     sys.exit(1)
 
 

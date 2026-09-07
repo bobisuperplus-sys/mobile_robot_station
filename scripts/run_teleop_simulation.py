@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 """
 移动机器人交互式键盘遥控与物理仿真启动入口
-环境依赖: /home/yellowtown/Code/PythonProject/venv
 """
 
 import sys
@@ -29,7 +28,7 @@ try:
     )
 except ImportError as err:
     print(f"[Error] 模块加载失败: {err}")
-    print("[Tip] 请确保已激活指定虚拟环境: source /home/yellowtown/Code/PythonProject/venv/bin/activate")
+    print("[Tip] 请确保已激活虚拟环境: source venv/bin/activate")
     sys.exit(1)
 
 
