@@ -6,7 +6,7 @@
 
 ## 1. 系统架构与工程目录
 
-本项目严格遵循工业级高内聚、低耦合的模块化分层设计，全工程物理目录与文档清单保持严格同步：
+本项目严格遵循工业级高内聚、低耦合的模块化分层设计，将 Python 算法后台各核心子系统与 C++ / Qt 6 工业上位机控制台作为并列的一等公民模块平铺管理，全工程物理目录与文档清单保持严格同步：
 
 ```text
 mobile_robot_station/
@@ -29,43 +29,44 @@ mobile_robot_station/
 ├── config/                            # 系统与传感器参数配置目录
 │   └── sensors.yaml                   # 激光雷达扫描线束/视场角及 IMU 高斯白噪声与漂移物理参数表
 │
-├── src/                               # 核心算法与业务逻辑源码
-│   ├── __init__.py                    # 顶层包标识
-│   ├── simulation/                    # 物理动力学与传感器仿真底座 (MuJoCo、CPU Raycasting、视讯推流)
-│   │   ├── __init__.py                # 模块导出定义
-│   │   ├── platform_compat.py         # Linux 桌面 (X11/Wayland) 图形环境兼容与警告拦截器
-│   │   ├── robot_driver.py            # 差速底盘逆运动学控制器与轮速映射解算器
-│   │   ├── imu_sim.py                 # 6 轴 MEMS 惯性测量单元仿真器 (角速度/线加速度噪声与偏置游走)
-│   │   ├── lidar_sim.py               # 16 线 360° 极速 CPU Raycasting 光线求交与 3D 点云发生器
-│   │   ├── streamer.py                # 基于 GStreamer 的 H.264 RTP/UDP 双机位低延迟视讯推流管道
-│   │   ├── teleop.py                  # 终端非阻塞键盘事件监听与速度增量遥控器
-│   │   └── world_sim.py               # MuJoCo 物理环境生命周期管理与多机位离屏渲染集成器
-│   │
-│   ├── core_math/                     # 空间几何代数与李代数核心库 (SE3/SO3 切空间微扰与李括号)
-│   │   └── __init__.py                # 模块导出定义
-│   ├── slam/                          # 3D 激光惯导紧耦合里程计 (点云配准、增量式 ikd-Tree、全局建图)
-│   │   └── __init__.py                # 模块导出定义
-│   ├── navigation/                    # 自主路径规划与局部避障 (2D Costmap 投影、A* 规划、DWA 避障)
-│   │   └── __init__.py                # 模块导出定义
-│   └── msh/                           # MSH (Mobile Station Host) 后台主控微服务与通信总线
-│       └── __init__.py                # 模块导出定义
+├── simulation/                        # 物理动力学与传感器仿真底座 (MuJoCo、极速 Raycasting、视讯推流)
+│   ├── __init__.py                    # 模块导出定义
+│   ├── platform_compat.py             # Linux 桌面 (X11/Wayland) 图形环境兼容与警告拦截器
+│   ├── robot_driver.py                # 差速底盘逆运动学控制器与轮速映射解算器
+│   ├── imu_sim.py                     # 6 轴 MEMS 惯性测量单元仿真器 (角速度/线加速度噪声与偏置游走)
+│   ├── lidar_sim.py                   # 16 线 360° 极速 CPU Raycasting 光线求交与 3D 点云发生器
+│   ├── streamer.py                    # 基于 GStreamer 的 H.264 RTP/UDP 双机位低延迟视讯推流管道
+│   ├── teleop.py                      # 终端非阻塞键盘事件监听与速度增量遥控器
+│   └── world_sim.py                   # MuJoCo 物理环境生命周期管理与多机位离屏渲染集成器
+│
+├── core_math/                         # 空间几何代数与李代数核心库 (SE3/SO3 切空间微扰与李括号)
+│   └── __init__.py                    # 模块导出定义
+│
+├── slam/                              # 3D 激光惯导紧耦合里程计 (点云配准、增量式 ikd-Tree、全局建图)
+│   └── __init__.py                    # 模块导出定义
+│
+├── navigation/                        # 自主路径规划与局部避障 (2D Costmap 投影、A* 规划、DWA 避障)
+│   └── __init__.py                    # 模块导出定义
+│
+├── msh/                               # MSH (Mobile Station Host) 后台主控微服务与通信总线
+│   └── __init__.py                    # 模块导出定义
+│
+├── qt_client/                         # 工业数字孪生上位机客户端工程 (C++ / Qt 6 QML，并列核心子系统)
+│   └── mobile_console/                # 基于 Qt 6 构建的 Cyber 赛博工业风格移动机器人控制台
+│       ├── CMakeLists.txt             # Qt 6 C++ / QML 项目 CMake 构建配置文件
+│       ├── main.cpp                   # 上位机客户端主入口
+│       ├── Main.qml                   # 工业控制台 QML 界面主视图
+│       ├── importedcontent/           # Figma to Qt 模块集成扩展目录
+│       └── .gitignore                 # Qt Creator 专用本地构建忽略规则
 │
 ├── scripts/                           # 业务启动与功能验证入口脚本
 │   ├── run_teleop_simulation.py       # 键盘交互式差速小车遥控与城市建筑群物理仿真主入口
 │   ├── run_streaming_simulation.py    # GStreamer 双机位 (车载前向 + 全局监控) H.264 视讯推流仿真入口
 │   └── view_lidar_scan.py             # 独立激光雷达点云捕获与测距单帧交互可视化验证工具
 │
-├── tests/                             # 核心算法与仿真模块单元测试套件
-│   ├── __init__.py                    # 测试包标识
-│   └── test_sensors.py                # 激光雷达光线求交、IMU 高斯噪声与平台兼容性自动化测试集
-│
-└── qt_client/                         # 工业数字孪生上位机客户端工程 (C++ / Qt 6 QML)
-    └── mobile_console/                # 基于 Qt 6 构建的 Cyber 赛博工业风格移动机器人控制台
-        ├── CMakeLists.txt             # Qt 6 C++ / QML 项目 CMake 构建配置文件
-        ├── main.cpp                   # 上位机客户端主入口
-        ├── Main.qml                   # 工业控制台 QML 界面主视图
-        ├── importedcontent/           # Figma to Qt 模块集成扩展目录
-        └── .gitignore                 # Qt Creator 专用本地构建忽略规则
+└── tests/                             # 核心算法与传感器自动化测试套件
+    ├── __init__.py                    # 测试包标识
+    └── test_sensors.py                # 激光雷达光线求交、IMU 高斯噪声与平台兼容性自动化测试集
 ```
 
 ---

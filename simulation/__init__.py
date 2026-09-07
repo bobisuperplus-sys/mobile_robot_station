@@ -4,14 +4,14 @@
 """
 
 # 首先导入平台兼容层，确保 GLFW 与 Qt 优先选用 X11/XWayland 后端
-import src.simulation.platform_compat
+import simulation.platform_compat
 
-from src.simulation.robot_driver import TurtleBot3BurgerDriver
-from src.simulation.world_sim import UrbanWorldSimulation
-from src.simulation.teleop import TeleopKeyboard
-from src.simulation.lidar_sim import RaycastLidar3D
-from src.simulation.imu_sim import RealisticIMUSimulator
-from src.simulation.streamer import GStreamerStreamer, MultiCameraStreamServer
+from simulation.robot_driver import TurtleBot3BurgerDriver
+from simulation.world_sim import UrbanWorldSimulation
+from simulation.teleop import TeleopKeyboard
+from simulation.lidar_sim import RaycastLidar3D
+from simulation.imu_sim import RealisticIMUSimulator
+from simulation.streamer import GStreamerStreamer, MultiCameraStreamServer
 
 __all__ = [
     "TurtleBot3BurgerDriver",

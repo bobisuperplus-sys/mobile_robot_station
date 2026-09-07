@@ -16,9 +16,9 @@ PROJECT_ROOT = os.path.dirname(CURRENT_DIR)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from src.simulation.world_sim import UrbanWorldSimulation
-from src.simulation.lidar_sim import RaycastLidar3D
-from src.simulation.imu_sim import RealisticIMUSimulator
+from simulation.world_sim import UrbanWorldSimulation
+from simulation.lidar_sim import RaycastLidar3D
+from simulation.imu_sim import RealisticIMUSimulator
 
 
 class TestSensors(unittest.TestCase):
@@ -90,7 +90,7 @@ class TestSensors(unittest.TestCase):
 
     def test_gstreamer_streaming_pipeline(self):
         """测试 GStreamer 双机位超低延迟推流管道连通性"""
-        from src.simulation.streamer import MultiCameraStreamServer
+        from simulation.streamer import MultiCameraStreamServer
 
         server = MultiCameraStreamServer(
             width=320,

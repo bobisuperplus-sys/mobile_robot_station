@@ -25,11 +25,11 @@
 1. **严禁单体大脚本 (Strict Modularization)**：
    - 严禁将运动学解算、物理仿真、通信网络、传感器驱动和交互控制混写在单个臃肿文件中；
    - 严格遵循功能分层架构：
-     - `src/simulation/`: 专注于物理引擎接入、底盘动力学控制、多线激光雷达 Raycasting 与 IMU 遥测数据流采集；
-     - `src/core_math/`: 专注于空间几何、SE(3)/SO(3) 李群李代数切空间微扰求导、坐标系变换工具；
-     - `src/slam/`: 专注于点云预处理、多线程 ICP/NDT 配准、ikd-Tree 动态数据结构维护、紧耦合里程计与位姿图优化；
-     - `src/navigation/`: 专注于 3D 点云切片 2D Costmap 生成、A* 全局路径规划与 DWA 局部动态避障；
-     - `src/msh/`: 专注于 MSH (Mobile Station Host) 后台主控微服务、JSON-RPC 控制总线与双机位调度；
+     - `simulation/`: 专注于物理引擎接入、底盘动力学控制、多线激光雷达 Raycasting 与 IMU 遥测数据流采集；
+     - `core_math/`: 专注于空间几何、SE(3)/SO(3) 李群李代数切空间微扰求导、坐标系变换工具；
+     - `slam/`: 专注于点云预处理、多线程 ICP/NDT 配准、ikd-Tree 动态数据结构维护、紧耦合里程计与位姿图优化；
+     - `navigation/`: 专注于 3D 点云切片 2D Costmap 生成、A* 全局路径规划与 DWA 局部动态避障；
+     - `msh/`: 专注于 MSH (Mobile Station Host) 后台主控微服务、JSON-RPC 控制总线与双机位调度；
      - `qt_client/`: 专注于 Qt 6 QML 工业数字孪生上位机仪表盘、多路视讯与 3D 视口呈现；
      - `scripts/`: 仅作为轻量级组装入口，负责参数解析与子系统调度，不得堆砌底层算法实现。
 2. **高内聚低耦合与接口规范**：

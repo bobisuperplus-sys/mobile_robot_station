@@ -20,11 +20,11 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 # 优先导入平台兼容层
-import src.simulation.platform_compat
+import simulation.platform_compat
 
 try:
     import mujoco.viewer
-    from src.simulation import (
+    from simulation import (
         TurtleBot3BurgerDriver,
         UrbanWorldSimulation,
         TeleopKeyboard,

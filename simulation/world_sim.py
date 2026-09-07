@@ -14,8 +14,8 @@ try:
 except ImportError as err:
     raise ImportError("未检测到 mujoco 库，请激活指定 Python 虚拟环境。") from err
 
-from src.simulation.lidar_sim import RaycastLidar3D
-from src.simulation.imu_sim import RealisticIMUSimulator
+from simulation.lidar_sim import RaycastLidar3D
+from simulation.imu_sim import RealisticIMUSimulator
 
 
 class UrbanWorldSimulation:
