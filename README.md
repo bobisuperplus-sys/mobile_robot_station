@@ -151,9 +151,13 @@ python scripts/view_slam_mapping.py
 - **无头测试**：支持 `python scripts/view_slam_mapping.py --auto --headless --steps 100` 进行无图形纯后台基准性能回归测试。
 
 ### 5. 启动数字孪生上位机控制台 (Qt 6 Client)
-上位机工程基于 Qt 6 (C++ / QML) 开发，可在 Qt Creator 中打开 `qt_client/mobile_console/CMakeLists.txt` 构建运行，或在终端编译后执行：
+上位机工程基于 Qt 6 (C++ / QML) 开发，可在 Qt Creator 中直接打开 `qt_client/mobile_console/CMakeLists.txt` 构建运行，亦可在终端通过标准通用 CMake 命令一键编译：
 
 ```bash
+# 跨平台标准 CMake 配置与构建
+cmake -B qt_client/mobile_console/build -S qt_client/mobile_console
+cmake --build qt_client/mobile_console/build
+
 # 启动构建完成的上位机控制台
 ./qt_client/mobile_console/build/appmobile_console
 ```
